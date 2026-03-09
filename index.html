@@ -365,6 +365,95 @@
     line-height: 1.5;
     backdrop-filter: blur(8px);
   }
+
+  /* Info Panel */
+  #info-panel {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    width: 300px;
+    background: rgba(10,10,18,0.96);
+    border: 1px solid var(--accent-dim);
+    border-radius: 10px;
+    z-index: 50;
+    display: none;
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px var(--accent-dim);
+    animation: panel-in 0.25s ease;
+  }
+
+  @keyframes panel-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .info-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .info-panel-type {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .info-panel-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+
+  .info-panel-close:hover { color: var(--text); }
+
+  .info-panel-body {
+    padding: 12px 14px;
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .info-panel-body .info-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .info-panel-body .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .info-row .info-label { color: var(--text-dim); }
+  .info-row .info-value { font-weight: 600; }
+
+  .info-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .info-badge.red { background: rgba(255,68,68,0.2); color: var(--red); }
+  .info-badge.orange { background: rgba(255,136,0,0.2); color: var(--orange); }
+  .info-badge.yellow { background: rgba(255,204,0,0.2); color: var(--yellow); }
+  .info-badge.green { background: rgba(68,255,136,0.2); color: var(--green); }
+  .info-badge.cyan { background: rgba(0,212,255,0.2); color: var(--accent); }
+  .info-badge.purple { background: rgba(170,68,255,0.2); color: var(--purple); }
 </style>
 </head>
 <body>
@@ -381,6 +470,13 @@
   <div id="globe-container">
     <canvas id="globe-canvas"></canvas>
     <div id="layer-toggles"></div>
+    <div id="info-panel">
+      <div class="info-panel-header">
+        <span class="info-panel-type" id="info-type"></span>
+        <button class="info-panel-close" id="info-close">&times;</button>
+      </div>
+      <div class="info-panel-body" id="info-body"></div>
+    </div>
   </div>
 
   <div id="sidebar">
@@ -684,7 +780,7 @@ Object.keys(LAYERS).forEach(key => {
 });
 
 // ─── Earthquake Ring Shader ──────────────────────────────────────────
-function createQuakeRing(lat, lon, mag, depth) {
+function createQuakeRing(lat, lon, mag, depth, place, time) {
   const size = magToSize(mag);
   const color = depthToColor(depth);
   const ringGeo = new THREE.RingGeometry(size * 0.3, size, 24);
@@ -699,7 +795,7 @@ function createQuakeRing(lat, lon, mag, depth) {
   const pos = latLonToVec3(lat, lon, EARTH_RADIUS + 0.002);
   ring.position.copy(pos);
   ring.lookAt(new THREE.Vector3(0, 0, 0));
-  ring.userData = { mag, depth, birthTime: Date.now() };
+  ring.userData = { type: 'earthquake', mag, depth, place, lat, lon, time, birthTime: Date.now() };
   return ring;
 }
 
@@ -708,6 +804,7 @@ const issMarkerGeo = new THREE.SphereGeometry(0.012, 8, 8);
 const issMarkerMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff });
 const issMarker = new THREE.Mesh(issMarkerGeo, issMarkerMat);
 issMarker.visible = false;
+issMarker.userData = { type: 'iss' };
 earth.add(issMarker);
 
 const issGlowGeo = new THREE.SphereGeometry(0.02, 8, 8);
@@ -734,7 +831,7 @@ const issTrail = new THREE.Line(issTrailGeo, issTrailMat);
 dataGroups.iss.add(issTrail);
 
 // ─── Volcano Markers ─────────────────────────────────────────────────
-function createVolcanoMarker(lat, lon, alertLevel) {
+function createVolcanoMarker(lat, lon, alertLevel, name) {
   const color = alertLevel === 'WARNING' ? 0xff4444 :
                 alertLevel === 'WATCH' ? 0xff8800 :
                 alertLevel === 'ADVISORY' ? 0xffcc00 : 0x44ff88;
@@ -745,6 +842,7 @@ function createVolcanoMarker(lat, lon, alertLevel) {
   cone.position.copy(pos);
   cone.lookAt(new THREE.Vector3(0, 0, 0));
   cone.rotateX(Math.PI / 2);
+  cone.userData = { type: 'volcano', name, lat, lon, alert: alertLevel };
 
   // Glow ring
   const ringGeo = new THREE.RingGeometry(0.008, 0.013, 16);
@@ -863,18 +961,184 @@ function aqiToColor(aqi) {
   return 0x8800aa;
 }
 
-// ─── Raycasting / Tooltips ───────────────────────────────────────────
+// ─── Raycasting / Tooltips / Click ───────────────────────────────────
 const raycaster = new THREE.Raycaster();
+raycaster.params.Line = { threshold: 0.02 };
 const mouse = new THREE.Vector2();
 const tooltip = document.getElementById('tooltip');
+const infoPanel = document.getElementById('info-panel');
+const infoType = document.getElementById('info-type');
+const infoBody = document.getElementById('info-body');
+const infoClose = document.getElementById('info-close');
+let lastHoverCheck = 0;
+let isDragging = false;
+let mouseDownPos = { x: 0, y: 0 };
+
+canvas.addEventListener('mousedown', (e) => {
+  mouseDownPos = { x: e.clientX, y: e.clientY };
+  isDragging = false;
+});
 
 canvas.addEventListener('mousemove', (e) => {
+  // Detect drag vs click
+  const dx = e.clientX - mouseDownPos.x;
+  const dy = e.clientY - mouseDownPos.y;
+  if (Math.abs(dx) > 4 || Math.abs(dy) > 4) isDragging = true;
+
   const rect = canvas.getBoundingClientRect();
   mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   tooltip.style.left = (e.clientX + 12) + 'px';
   tooltip.style.top = (e.clientY - 12) + 'px';
+
+  // Throttled hover detection
+  const now = Date.now();
+  if (now - lastHoverCheck < 60) return;
+  lastHoverCheck = now;
+
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(earth.children, true)
+    .filter(h => h.object.userData?.type);
+
+  if (hits.length > 0) {
+    canvas.style.cursor = 'pointer';
+    const d = hits[0].object.userData;
+    tooltip.style.display = 'block';
+    tooltip.textContent = getTooltipText(d);
+  } else {
+    canvas.style.cursor = 'grab';
+    tooltip.style.display = 'none';
+  }
 });
+
+canvas.addEventListener('mouseleave', () => {
+  tooltip.style.display = 'none';
+  canvas.style.cursor = 'grab';
+});
+
+// Click handler
+canvas.addEventListener('click', (e) => {
+  if (isDragging) return;
+
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(earth.children, true)
+    .filter(h => h.object.userData?.type);
+
+  if (hits.length > 0) {
+    const d = hits[0].object.userData;
+    showInfoPanel(d);
+    controls.autoRotate = false;
+    tooltip.style.display = 'none';
+  } else {
+    closeInfoPanel();
+  }
+});
+
+infoClose.addEventListener('click', (e) => {
+  e.stopPropagation();
+  closeInfoPanel();
+});
+
+function closeInfoPanel() {
+  infoPanel.style.display = 'none';
+  controls.autoRotate = true;
+}
+
+function getTooltipText(d) {
+  switch (d.type) {
+    case 'earthquake': return `M${d.mag.toFixed(1)} Earthquake`;
+    case 'volcano': return `${d.name} (${d.alert})`;
+    case 'airquality': return `${d.name} AQI: ${d.aqi}`;
+    case 'ocean': return `Ocean ${d.temp?.toFixed(1)}°C`;
+    case 'iss': return 'ISS — Click for details';
+    case 'asteroid': return `${d.name}`;
+    default: return '';
+  }
+}
+
+function showInfoPanel(d) {
+  infoPanel.style.display = 'block';
+  // Re-trigger animation
+  infoPanel.style.animation = 'none';
+  infoPanel.offsetHeight; // reflow
+  infoPanel.style.animation = '';
+
+  switch (d.type) {
+    case 'earthquake':
+      const magColor = d.mag >= 6 ? 'red' : d.mag >= 4.5 ? 'orange' : d.mag >= 3 ? 'yellow' : 'green';
+      const depthLabel = d.depth < 10 ? 'Shallow' : d.depth < 50 ? 'Intermediate' : d.depth < 100 ? 'Mid' : 'Deep';
+      infoType.style.color = 'var(--red)';
+      infoType.textContent = 'EARTHQUAKE';
+      infoBody.innerHTML = `
+        <div class="info-title"><span class="info-badge ${magColor}">M${d.mag.toFixed(1)}</span> ${d.place || 'Unknown location'}</div>
+        <div class="info-row"><span class="info-label">Depth</span><span class="info-value">${d.depth.toFixed(1)} km <span style="color:var(--text-dim)">(${depthLabel})</span></span></div>
+        <div class="info-row"><span class="info-label">Coordinates</span><span class="info-value">${d.lat.toFixed(2)}°, ${d.lon.toFixed(2)}°</span></div>
+        <div class="info-row"><span class="info-label">Time</span><span class="info-value">${formatTimeAgo(new Date(d.time))} ago</span></div>
+      `;
+      break;
+
+    case 'volcano':
+      const alertColor = d.alert === 'WARNING' ? 'red' : d.alert === 'WATCH' ? 'orange' : d.alert === 'ADVISORY' ? 'yellow' : 'green';
+      infoType.style.color = 'var(--orange)';
+      infoType.textContent = 'VOLCANO';
+      infoBody.innerHTML = `
+        <div class="info-title">${d.name}</div>
+        <div class="info-row"><span class="info-label">Alert Level</span><span class="info-value"><span class="info-badge ${alertColor}">${d.alert}</span></span></div>
+        <div class="info-row"><span class="info-label">Coordinates</span><span class="info-value">${d.lat.toFixed(2)}°, ${d.lon.toFixed(2)}°</span></div>
+      `;
+      break;
+
+    case 'airquality':
+      const aqiLabel = d.aqi <= 50 ? 'Good' : d.aqi <= 100 ? 'Moderate' : d.aqi <= 150 ? 'Unhealthy (Sensitive)' : d.aqi <= 200 ? 'Unhealthy' : 'Hazardous';
+      const aqiColor = d.aqi <= 50 ? 'green' : d.aqi <= 100 ? 'yellow' : d.aqi <= 150 ? 'orange' : 'red';
+      infoType.style.color = 'var(--green)';
+      infoType.textContent = 'AIR QUALITY';
+      infoBody.innerHTML = `
+        <div class="info-title">${d.name}</div>
+        <div class="info-row"><span class="info-label">AQI</span><span class="info-value"><span class="info-badge ${aqiColor}">${d.aqi}</span> ${aqiLabel}</span></div>
+        <div class="info-row"><span class="info-label">Coordinates</span><span class="info-value">${d.lat.toFixed(2)}°, ${d.lon.toFixed(2)}°</span></div>
+      `;
+      break;
+
+    case 'ocean':
+      const tempColor = d.temp > 25 ? 'red' : d.temp > 15 ? 'yellow' : d.temp > 5 ? 'cyan' : 'purple';
+      const tempLabel = d.temp > 25 ? 'Warm' : d.temp > 15 ? 'Temperate' : d.temp > 5 ? 'Cool' : 'Cold';
+      infoType.style.color = 'var(--accent)';
+      infoType.textContent = 'OCEAN TEMPERATURE';
+      infoBody.innerHTML = `
+        <div class="info-title"><span class="info-badge ${tempColor}">${d.temp?.toFixed(1)}°C</span> ${tempLabel}</div>
+        <div class="info-row"><span class="info-label">Coordinates</span><span class="info-value">${d.lat.toFixed(1)}°, ${d.lon.toFixed(1)}°</span></div>
+      `;
+      break;
+
+    case 'iss':
+      const iss = state.iss;
+      infoType.style.color = 'var(--accent)';
+      infoType.textContent = 'INTERNATIONAL SPACE STATION';
+      infoBody.innerHTML = iss ? `
+        <div class="info-title"><span class="info-badge cyan">LIVE</span> ISS Tracking</div>
+        <div class="info-row"><span class="info-label">Altitude</span><span class="info-value">${Math.round(iss.alt)} km</span></div>
+        <div class="info-row"><span class="info-label">Velocity</span><span class="info-value">${Math.round(iss.velocity).toLocaleString()} km/h</span></div>
+        <div class="info-row"><span class="info-label">Latitude</span><span class="info-value">${iss.lat.toFixed(3)}°</span></div>
+        <div class="info-row"><span class="info-label">Longitude</span><span class="info-value">${iss.lon.toFixed(3)}°</span></div>
+        <div class="info-row"><span class="info-label">Visibility</span><span class="info-value">${iss.visibility || '--'}</span></div>
+      ` : '<div class="info-title">Loading ISS data...</div>';
+      break;
+
+    case 'asteroid':
+      const hazColor = d.hazardous ? 'red' : 'purple';
+      infoType.style.color = 'var(--purple)';
+      infoType.textContent = 'NEAR-EARTH OBJECT';
+      infoBody.innerHTML = `
+        <div class="info-title">${d.name}</div>
+        ${d.hazardous ? '<div style="margin-bottom:8px"><span class="info-badge red">POTENTIALLY HAZARDOUS</span></div>' : ''}
+        <div class="info-row"><span class="info-label">Diameter</span><span class="info-value">${Math.round(d.diameter)} m</span></div>
+        <div class="info-row"><span class="info-label">Miss Distance</span><span class="info-value">${d.missDistance.toFixed(1)} lunar</span></div>
+        <div class="info-row"><span class="info-label">Velocity</span><span class="info-value">${d.velocity.toFixed(1)} km/s</span></div>
+      `;
+      break;
+  }
+}
 
 // ─── Data Fetching ───────────────────────────────────────────────────
 function setFeedStatus(name, status) {
@@ -932,7 +1196,7 @@ function renderEarthquakes() {
     dataGroups.earthquakes.remove(dataGroups.earthquakes.children[0]);
   }
   state.earthquakes.forEach(q => {
-    const ring = createQuakeRing(q.lat, q.lon, q.mag, q.depth);
+    const ring = createQuakeRing(q.lat, q.lon, q.mag, q.depth, q.place, q.time);
     dataGroups.earthquakes.add(ring);
   });
 }
@@ -1127,7 +1391,7 @@ function renderVolcanoes() {
     dataGroups.volcanoes.remove(dataGroups.volcanoes.children[0]);
   }
   state.volcanoes.forEach(v => {
-    const { cone, ring } = createVolcanoMarker(v.lat, v.lon, v.alert);
+    const { cone, ring } = createVolcanoMarker(v.lat, v.lon, v.alert, v.name);
     dataGroups.volcanoes.add(cone);
     dataGroups.volcanoes.add(ring);
   });
@@ -1187,7 +1451,9 @@ function renderAsteroids() {
       opacity: 0.4,
       depthWrite: false,
     });
-    dataGroups.asteroids.add(new THREE.Mesh(geo, mat));
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.userData = { type: 'asteroid', name: a.name, diameter: a.diameter, missDistance: a.missDistance, velocity: a.velocity, hazardous: a.hazardous };
+    dataGroups.asteroids.add(mesh);
   });
 }
 
@@ -1227,6 +1493,7 @@ function renderAirQuality(data) {
     const ring = new THREE.Mesh(geo, mat);
     ring.position.copy(latLonToVec3(city.lat, city.lon, EARTH_RADIUS + 0.004));
     ring.lookAt(new THREE.Vector3(0, 0, 0));
+    ring.userData = { type: 'airquality', name: city.name, aqi: city.aqi, lat: city.lat, lon: city.lon };
     dataGroups.airquality.add(ring);
 
     // Inner glow
@@ -1287,6 +1554,7 @@ function renderOceanTemp(data) {
     });
     const sphere = new THREE.Mesh(geo, mat);
     sphere.position.copy(latLonToVec3(point.lat, point.lon, EARTH_RADIUS + 0.002));
+    sphere.userData = { type: 'ocean', temp: point.temp, lat: point.lat, lon: point.lon };
     dataGroups.ocean.add(sphere);
   });
 }
