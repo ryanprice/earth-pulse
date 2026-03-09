@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "earth-pulse",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "3333", "/Users/ryanprice/MyApplications/earth-pulse"],
+      "port": 3333
+    }
+  ]
+}

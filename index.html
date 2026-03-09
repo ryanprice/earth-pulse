@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Pulse — Real-Time Planet Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0f;
+    --panel: #0d0d14;
+    --border: #1a1a2e;
+    --text: #c8c8d4;
+    --text-dim: #5a5a6e;
+    --accent: #00d4ff;
+    --accent-dim: #00d4ff33;
+    --red: #ff4444;
+    --orange: #ff8800;
+    --yellow: #ffcc00;
+    --green: #44ff88;
+    --purple: #aa44ff;
+  }
+
+  @font-face {
+    font-family: 'Mono';
+    src: local('SF Mono'), local('Menlo'), local('Consolas'), local('monospace');
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Menlo', 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: 40px 1fr 32px;
+    height: 100vh;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  /* Header */
+  #header {
+    grid-column: 1 / -1;
+    background: var(--panel);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 16px;
+  }
+
+  #header .logo {
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  #header .logo span { color: var(--text-dim); font-weight: 400; }
+
+  .header-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-dim);
+    font-size: 10px;
+  }
+
+  .header-stat .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse-dot 2s infinite;
+  }
+
+  .header-stat .dot.warn { background: var(--orange); }
+  .header-stat .dot.alert { background: var(--red); }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .header-time {
+    margin-left: auto;
+    color: var(--text-dim);
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+
+  /* Globe container */
+  #globe-container {
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+  }
+
+  #globe-container:active { cursor: grabbing; }
+
+  #globe-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Layer toggles overlay */
+  #layer-toggles {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 10;
+  }
+
+  .layer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    background: rgba(13,13,20,0.85);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 9px;
+    color: var(--text-dim);
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  .layer-toggle:hover { border-color: var(--accent); color: var(--text); }
+  .layer-toggle.active { color: var(--text); }
+
+  .layer-toggle .indicator {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    transition: all 0.2s;
+  }
+
+  .layer-toggle.active .indicator {
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+  }
+
+  /* Sidebar */
+  #sidebar {
+    background: var(--panel);
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  #sidebar::-webkit-scrollbar { width: 4px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .sidebar-section {
+    padding: 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-title {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .section-title .live-badge {
+    font-size: 8px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--green);
+    color: #000;
+    font-weight: 700;
+    animation: pulse-dot 2s infinite;
+  }
+
+  /* Solar gauge */
+  .solar-gauge {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .gauge-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .gauge-label { color: var(--text-dim); font-size: 10px; }
+  .gauge-value { font-size: 12px; font-weight: 700; }
+
+  .gauge-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+
+  .gauge-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease, background 1s ease;
+  }
+
+  /* Stats grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-card .stat-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .stat-card .stat-value {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .stat-card .stat-sub {
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  /* Event feed */
+  .event-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .event-feed::-webkit-scrollbar { width: 3px; }
+  .event-feed::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .event-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 6px 8px;
+    background: rgba(255,255,255,0.015);
+    border-radius: 4px;
+    border-left: 2px solid var(--accent);
+    animation: event-in 0.3s ease;
+  }
+
+  @keyframes event-in {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .event-item.quake { border-left-color: var(--red); }
+  .event-item.volcano { border-left-color: var(--orange); }
+  .event-item.solar { border-left-color: var(--yellow); }
+  .event-item.iss { border-left-color: var(--accent); }
+  .event-item.aurora { border-left-color: var(--green); }
+  .event-item.asteroid { border-left-color: var(--purple); }
+
+  .event-time {
+    font-size: 9px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    min-width: 36px;
+  }
+
+  .event-text { font-size: 10px; line-height: 1.4; }
+
+  /* Correlation insights */
+  .insight-card {
+    padding: 10px;
+    background: rgba(0, 212, 255, 0.04);
+    border: 1px solid var(--accent-dim);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    line-height: 1.5;
+    font-size: 10px;
+  }
+
+  .insight-card .insight-tag {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  /* Footer */
+  #footer {
+    grid-column: 1 / -1;
+    background: var(--panel);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 20px;
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  .feed-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .feed-status .indicator {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+
+  .feed-status .indicator.error { background: var(--red); }
+  .feed-status .indicator.loading { background: var(--yellow); animation: pulse-dot 1s infinite; }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    background: rgba(13,13,20,0.95);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 10px;
+    pointer-events: none;
+    z-index: 100;
+    display: none;
+    max-width: 240px;
+    line-height: 1.5;
+    backdrop-filter: blur(8px);
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="header">
+    <div class="logo">EARTH PULSE <span>v1.0</span></div>
+    <div class="header-stat"><div class="dot" id="dot-feeds"></div><span id="feeds-status">Connecting...</span></div>
+    <div class="header-stat"><div class="dot" id="dot-solar"></div><span id="solar-status">Solar: --</span></div>
+    <div class="header-stat"><div class="dot" id="dot-seismic"></div><span id="seismic-status">Seismic: --</span></div>
+    <div class="header-time" id="utc-clock"></div>
+  </div>
+
+  <div id="globe-container">
+    <canvas id="globe-canvas"></canvas>
+    <div id="layer-toggles"></div>
+  </div>
+
+  <div id="sidebar">
+    <!-- Solar Activity -->
+    <div class="sidebar-section">
+      <div class="section-title">Solar Activity <span class="live-badge">LIVE</span></div>
+      <div class="solar-gauge">
+        <div>
+          <div class="gauge-row">
+            <span class="gauge-label">X-Ray Flux</span>
+            <span class="gauge-value" id="xray-value" style="color:var(--yellow)">--</span>
+          </div>
+          <div class="gauge-bar"><div class="gauge-fill" id="xray-bar" style="width:0%;background:var(--yellow)"></div></div>
+        </div>
+        <div>
+          <div class="gauge-row">
+            <span class="gauge-label">Kp Index</span>
+            <span class="gauge-value" id="kp-value" style="color:var(--green)">--</span>
+          </div>
+          <div class="gauge-bar"><div class="gauge-fill" id="kp-bar" style="width:0%;background:var(--green)"></div></div>
+        </div>
+        <div>
+          <div class="gauge-row">
+            <span class="gauge-label">Solar Wind</span>
+            <span class="gauge-value" id="wind-value" style="color:var(--accent)">-- km/s</span>
+          </div>
+          <div class="gauge-bar"><div class="gauge-fill" id="wind-bar" style="width:0%;background:var(--accent)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Stats -->
+    <div class="sidebar-section">
+      <div class="section-title">Live Stats</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Earthquakes</span>
+          <span class="stat-value" id="stat-quakes" style="color:var(--red)">--</span>
+          <span class="stat-sub" id="stat-quakes-sub">past 24h</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Volcanoes</span>
+          <span class="stat-value" id="stat-volcanoes" style="color:var(--orange)">--</span>
+          <span class="stat-sub">elevated</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">ISS Altitude</span>
+          <span class="stat-value" id="stat-iss-alt" style="color:var(--accent)">--</span>
+          <span class="stat-sub" id="stat-iss-region">--</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Asteroids</span>
+          <span class="stat-value" id="stat-asteroids" style="color:var(--purple)">--</span>
+          <span class="stat-sub">near Earth today</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Max Quake</span>
+          <span class="stat-value" id="stat-max-quake" style="color:var(--red)">--</span>
+          <span class="stat-sub" id="stat-max-quake-loc">--</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Aurora Kp</span>
+          <span class="stat-value" id="stat-aurora" style="color:var(--green)">--</span>
+          <span class="stat-sub" id="stat-aurora-sub">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Event Feed -->
+    <div class="sidebar-section">
+      <div class="section-title">Event Feed <span class="live-badge">LIVE</span></div>
+      <div class="event-feed" id="event-feed"></div>
+    </div>
+
+    <!-- AI Correlation -->
+    <div class="sidebar-section">
+      <div class="section-title">Cross-Feed Correlation</div>
+      <div id="insights"></div>
+    </div>
+  </div>
+
+  <div id="footer">
+    <div id="feed-indicators"></div>
+    <span style="margin-left:auto">10 FEEDS | EARTH PULSE</span>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── Constants ───────────────────────────────────────────────────────
+const EARTH_RADIUS = 1;
+const ATMOSPHERE_RADIUS = 1.06;
+const LAYERS = {
+  earthquakes: { label: 'Earthquakes', color: '#ff4444', active: true },
+  iss:         { label: 'ISS Track', color: '#00d4ff', active: true },
+  aurora:      { label: 'Aurora', color: '#44ff88', active: true },
+  volcanoes:   { label: 'Volcanoes', color: '#ff8800', active: true },
+  solar:       { label: 'Solar Wind', color: '#ffcc00', active: true },
+  asteroids:   { label: 'Asteroids', color: '#aa44ff', active: true },
+  ocean:       { label: 'Ocean Temp', color: '#0088ff', active: true },
+  airquality:  { label: 'Air Quality', color: '#44ffcc', active: true },
+  lightning:   { label: 'Lightning', color: '#ffffff', active: true },
+  cosmic:      { label: 'Cosmic Rays', color: '#ff44aa', active: true },
+};
+
+// ─── State ───────────────────────────────────────────────────────────
+const state = {
+  earthquakes: [],
+  iss: null,
+  issTrail: [],
+  volcanoes: [],
+  aurora: null,
+  solar: { xray: null, kp: null, wind: null },
+  asteroids: [],
+  events: [],
+  insights: [],
+  feedStatus: {},
+};
+
+// ─── Utilities ───────────────────────────────────────────────────────
+function latLonToVec3(lat, lon, radius) {
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = (lon + 180) * (Math.PI / 180);
+  return new THREE.Vector3(
+    -(radius * Math.sin(phi) * Math.cos(theta)),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.sin(theta)
+  );
+}
+
+function formatTime(date) {
+  return date.toISOString().slice(11, 19) + ' UTC';
+}
+
+function formatTimeAgo(date) {
+  const diff = (Date.now() - date.getTime()) / 1000;
+  if (diff < 60) return Math.floor(diff) + 's';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+  return Math.floor(diff / 86400) + 'd';
+}
+
+function depthToColor(depth) {
+  if (depth < 10) return new THREE.Color(0xff4444);
+  if (depth < 50) return new THREE.Color(0xff8800);
+  if (depth < 100) return new THREE.Color(0xffcc00);
+  return new THREE.Color(0x44ffcc);
+}
+
+function magToSize(mag) {
+  return Math.max(0.003, Math.pow(mag / 5, 2) * 0.015);
+}
+
+function kpToColor(kp) {
+  if (kp < 3) return '#44ff88';
+  if (kp < 5) return '#ffcc00';
+  if (kp < 7) return '#ff8800';
+  return '#ff4444';
+}
+
+// ─── Three.js Setup ──────────────────────────────────────────────────
+const canvas = document.getElementById('globe-canvas');
+const container = document.getElementById('globe-container');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x0a0a0f);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+camera.position.set(0, 0.5, 2.8);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = 1.5;
+controls.maxDistance = 6;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.3;
+controls.enablePan = false;
+
+// ─── Starfield ───────────────────────────────────────────────────────
+const starCount = 3000;
+const starGeo = new THREE.BufferGeometry();
+const starPositions = new Float32Array(starCount * 3);
+const starSizes = new Float32Array(starCount);
+for (let i = 0; i < starCount; i++) {
+  const r = 20 + Math.random() * 30;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+  starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+  starPositions[i * 3 + 2] = r * Math.cos(phi);
+  starSizes[i] = Math.random() * 1.5 + 0.5;
+}
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+starGeo.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+
+const starMat = new THREE.PointsMaterial({
+  color: 0xffffff,
+  size: 0.03,
+  sizeAttenuation: true,
+  transparent: true,
+  opacity: 0.8,
+});
+scene.add(new THREE.Points(starGeo, starMat));
+
+// ─── Earth Globe ─────────────────────────────────────────────────────
+const textureLoader = new THREE.TextureLoader();
+const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
+
+// Create dark base material, then load texture on top
+const earthMat = new THREE.MeshPhongMaterial({
+  color: 0x1a1a2e,
+  emissive: 0x000000,
+  specular: 0x111122,
+  shininess: 5,
+});
+
+textureLoader.load('textures/earth_night.jpg', (texture) => {
+  texture.colorSpace = THREE.SRGBColorSpace;
+  earthMat.map = texture;
+  earthMat.emissiveMap = texture;
+  earthMat.emissive = new THREE.Color(0xffffff);
+  earthMat.emissiveIntensity = 0.9;
+  earthMat.color = new THREE.Color(0x222233);
+  earthMat.needsUpdate = true;
+}, undefined, () => {
+  console.warn('Failed to load earth texture, using fallback');
+  earthMat.color = new THREE.Color(0x0a0a1e);
+  earthMat.emissive = new THREE.Color(0x0a0a2e);
+  earthMat.emissiveIntensity = 1;
+});
+
+const earth = new THREE.Mesh(earthGeo, earthMat);
+scene.add(earth);
+
+// ─── Atmosphere Glow ─────────────────────────────────────────────────
+const atmosGeo = new THREE.SphereGeometry(ATMOSPHERE_RADIUS, 64, 64);
+const atmosMat = new THREE.ShaderMaterial({
+  vertexShader: `
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      vPosition = vec3(modelViewMatrix * vec4(position, 1.0));
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 glowColor;
+    uniform float coefficient;
+    uniform float power;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    void main() {
+      vec3 viewDir = normalize(-vPosition);
+      float intensity = pow(coefficient - dot(vNormal, viewDir), power);
+      gl_FragColor = vec4(glowColor, 1.0) * intensity;
+    }
+  `,
+  uniforms: {
+    glowColor: { value: new THREE.Color(0x00aaff) },
+    coefficient: { value: 0.6 },
+    power: { value: 4.0 },
+  },
+  side: THREE.BackSide,
+  blending: THREE.AdditiveBlending,
+  transparent: true,
+  depthWrite: false,
+});
+scene.add(new THREE.Mesh(atmosGeo, atmosMat));
+
+// ─── Lighting ────────────────────────────────────────────────────────
+const ambientLight = new THREE.AmbientLight(0x222244, 0.5);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xffffff, 0.3);
+sunLight.position.set(5, 3, 5);
+scene.add(sunLight);
+
+// ─── Data Layer Groups ───────────────────────────────────────────────
+const dataGroups = {};
+Object.keys(LAYERS).forEach(key => {
+  const group = new THREE.Group();
+  group.visible = LAYERS[key].active;
+  earth.add(group);
+  dataGroups[key] = group;
+});
+
+// ─── Earthquake Ring Shader ──────────────────────────────────────────
+function createQuakeRing(lat, lon, mag, depth) {
+  const size = magToSize(mag);
+  const color = depthToColor(depth);
+  const ringGeo = new THREE.RingGeometry(size * 0.3, size, 24);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: color,
+    transparent: true,
+    opacity: 0.8,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  const pos = latLonToVec3(lat, lon, EARTH_RADIUS + 0.002);
+  ring.position.copy(pos);
+  ring.lookAt(new THREE.Vector3(0, 0, 0));
+  ring.userData = { mag, depth, birthTime: Date.now() };
+  return ring;
+}
+
+// ─── ISS Marker ──────────────────────────────────────────────────────
+const issMarkerGeo = new THREE.SphereGeometry(0.012, 8, 8);
+const issMarkerMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff });
+const issMarker = new THREE.Mesh(issMarkerGeo, issMarkerMat);
+issMarker.visible = false;
+earth.add(issMarker);
+
+const issGlowGeo = new THREE.SphereGeometry(0.02, 8, 8);
+const issGlowMat = new THREE.MeshBasicMaterial({
+  color: 0x00d4ff,
+  transparent: true,
+  opacity: 0.3,
+  depthWrite: false,
+});
+const issGlow = new THREE.Mesh(issGlowGeo, issGlowMat);
+issMarker.add(issGlow);
+
+// ISS trail
+const issTrailGeo = new THREE.BufferGeometry();
+const issTrailPositions = new Float32Array(300 * 3); // 100 trail points
+issTrailGeo.setAttribute('position', new THREE.BufferAttribute(issTrailPositions, 3));
+const issTrailMat = new THREE.LineBasicMaterial({
+  color: 0x00d4ff,
+  transparent: true,
+  opacity: 0.3,
+  depthWrite: false,
+});
+const issTrail = new THREE.Line(issTrailGeo, issTrailMat);
+dataGroups.iss.add(issTrail);
+
+// ─── Volcano Markers ─────────────────────────────────────────────────
+function createVolcanoMarker(lat, lon, alertLevel) {
+  const color = alertLevel === 'WARNING' ? 0xff4444 :
+                alertLevel === 'WATCH' ? 0xff8800 :
+                alertLevel === 'ADVISORY' ? 0xffcc00 : 0x44ff88;
+  const geo = new THREE.ConeGeometry(0.006, 0.014, 6);
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 });
+  const cone = new THREE.Mesh(geo, mat);
+  const pos = latLonToVec3(lat, lon, EARTH_RADIUS + 0.006);
+  cone.position.copy(pos);
+  cone.lookAt(new THREE.Vector3(0, 0, 0));
+  cone.rotateX(Math.PI / 2);
+
+  // Glow ring
+  const ringGeo = new THREE.RingGeometry(0.008, 0.013, 16);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false,
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.copy(pos);
+  ring.lookAt(new THREE.Vector3(0, 0, 0));
+  cone.userData.ring = ring;
+
+  return { cone, ring };
+}
+
+// ─── Aurora Band ─────────────────────────────────────────────────────
+// Simplified aurora as glowing rings at high latitudes
+function createAuroraBand() {
+  const group = new THREE.Group();
+  const latitudes = [65, 67, 69, -65, -67, -69];
+  latitudes.forEach(lat => {
+    const points = [];
+    for (let lon = -180; lon <= 180; lon += 5) {
+      const jitter = (Math.random() - 0.5) * 2;
+      points.push(latLonToVec3(lat + jitter, lon, EARTH_RADIUS + 0.008));
+    }
+    const curve = new THREE.CatmullRomCurve3(points, true);
+    const geo = new THREE.TubeGeometry(curve, 72, 0.003, 4, true);
+    const mat = new THREE.MeshBasicMaterial({
+      color: lat > 0 ? 0x44ff88 : 0x8844ff,
+      transparent: true,
+      opacity: 0.15,
+      depthWrite: false,
+    });
+    group.add(new THREE.Mesh(geo, mat));
+  });
+  return group;
+}
+const auroraGroup = createAuroraBand();
+dataGroups.aurora.add(auroraGroup);
+
+// ─── Solar Wind Particles ────────────────────────────────────────────
+const solarParticleCount = 200;
+const solarGeo = new THREE.BufferGeometry();
+const solarPositions = new Float32Array(solarParticleCount * 3);
+const solarVelocities = [];
+for (let i = 0; i < solarParticleCount; i++) {
+  solarPositions[i * 3] = 3 + Math.random() * 2;
+  solarPositions[i * 3 + 1] = (Math.random() - 0.5) * 1.5;
+  solarPositions[i * 3 + 2] = (Math.random() - 0.5) * 1.5;
+  solarVelocities.push(-0.01 - Math.random() * 0.02);
+}
+solarGeo.setAttribute('position', new THREE.BufferAttribute(solarPositions, 3));
+const solarMat = new THREE.PointsMaterial({
+  color: 0xffcc00,
+  size: 0.015,
+  transparent: true,
+  opacity: 0.6,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+const solarParticles = new THREE.Points(solarGeo, solarMat);
+dataGroups.solar.add(solarParticles);
+
+// ─── Sun Glow ────────────────────────────────────────────────────────
+const sunGlowGeo = new THREE.SphereGeometry(0.15, 16, 16);
+const sunGlowMat = new THREE.MeshBasicMaterial({
+  color: 0xffdd44,
+  transparent: true,
+  opacity: 0.6,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+const sunGlow = new THREE.Mesh(sunGlowGeo, sunGlowMat);
+sunGlow.position.set(4, 0.5, 3);
+scene.add(sunGlow);
+
+// ─── Lightning Flashes ───────────────────────────────────────────────
+const lightningFlashes = [];
+function createLightningFlash(lat, lon) {
+  const geo = new THREE.SphereGeometry(0.006, 4, 4);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 1,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const flash = new THREE.Mesh(geo, mat);
+  flash.position.copy(latLonToVec3(lat, lon, EARTH_RADIUS + 0.003));
+  flash.userData.birthTime = Date.now();
+  flash.userData.duration = 200 + Math.random() * 300;
+  return flash;
+}
+
+// ─── Air Quality Halos ───────────────────────────────────────────────
+const AQ_CITIES = [
+  { name: 'Beijing', lat: 39.9, lon: 116.4 },
+  { name: 'Delhi', lat: 28.6, lon: 77.2 },
+  { name: 'Los Angeles', lat: 34.0, lon: -118.2 },
+  { name: 'London', lat: 51.5, lon: -0.1 },
+  { name: 'Tokyo', lat: 35.7, lon: 139.7 },
+  { name: 'São Paulo', lat: -23.5, lon: -46.6 },
+  { name: 'Cairo', lat: 30.0, lon: 31.2 },
+  { name: 'Mumbai', lat: 19.1, lon: 72.9 },
+  { name: 'Sydney', lat: -33.9, lon: 151.2 },
+  { name: 'Lagos', lat: 6.5, lon: 3.4 },
+  { name: 'Mexico City', lat: 19.4, lon: -99.1 },
+  { name: 'Seoul', lat: 37.6, lon: 127.0 },
+];
+
+function aqiToColor(aqi) {
+  if (aqi <= 50) return 0x44ff88;
+  if (aqi <= 100) return 0xffcc00;
+  if (aqi <= 150) return 0xff8800;
+  if (aqi <= 200) return 0xff4444;
+  return 0x8800aa;
+}
+
+// ─── Raycasting / Tooltips ───────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  tooltip.style.left = (e.clientX + 12) + 'px';
+  tooltip.style.top = (e.clientY - 12) + 'px';
+});
+
+// ─── Data Fetching ───────────────────────────────────────────────────
+function setFeedStatus(name, status) {
+  state.feedStatus[name] = status;
+  updateFooterIndicators();
+}
+
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// 1. Earthquakes
+async function fetchEarthquakes() {
+  setFeedStatus('Earthquakes', 'loading');
+  try {
+    const data = await fetchJSON('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson');
+    state.earthquakes = data.features.map(f => ({
+      lat: f.geometry.coordinates[1],
+      lon: f.geometry.coordinates[0],
+      depth: f.geometry.coordinates[2],
+      mag: f.properties.mag,
+      place: f.properties.place,
+      time: f.properties.time,
+      id: f.id,
+    }));
+    renderEarthquakes();
+    setFeedStatus('Earthquakes', 'ok');
+
+    // Update stats
+    document.getElementById('stat-quakes').textContent = state.earthquakes.length;
+    const maxQ = state.earthquakes.reduce((a, b) => a.mag > b.mag ? a : b, { mag: 0 });
+    if (maxQ.mag) {
+      document.getElementById('stat-max-quake').textContent = 'M' + maxQ.mag.toFixed(1);
+      document.getElementById('stat-max-quake-loc').textContent = maxQ.place || '--';
+    }
+    document.getElementById('dot-seismic').className = 'dot' + (maxQ.mag >= 6 ? ' alert' : maxQ.mag >= 4.5 ? ' warn' : '');
+    document.getElementById('seismic-status').textContent = `Seismic: ${state.earthquakes.length} events`;
+
+    // Add latest to event feed
+    if (state.earthquakes.length > 0) {
+      const latest = state.earthquakes[0];
+      addEvent('quake', `M${latest.mag.toFixed(1)} earthquake — ${latest.place}`, new Date(latest.time));
+    }
+  } catch (e) {
+    console.error('Earthquake fetch error:', e);
+    setFeedStatus('Earthquakes', 'error');
+  }
+}
+
+function renderEarthquakes() {
+  // Clear existing
+  while (dataGroups.earthquakes.children.length) {
+    dataGroups.earthquakes.remove(dataGroups.earthquakes.children[0]);
+  }
+  state.earthquakes.forEach(q => {
+    const ring = createQuakeRing(q.lat, q.lon, q.mag, q.depth);
+    dataGroups.earthquakes.add(ring);
+  });
+}
+
+// 2. ISS Position
+async function fetchISS() {
+  setFeedStatus('ISS', 'loading');
+  try {
+    const data = await fetchJSON('https://api.wheretheiss.at/v1/satellites/25544');
+    state.iss = {
+      lat: data.latitude,
+      lon: data.longitude,
+      alt: data.altitude,
+      velocity: data.velocity,
+      visibility: data.visibility,
+    };
+
+    // Update marker
+    const pos = latLonToVec3(state.iss.lat, state.iss.lon, EARTH_RADIUS + 0.04);
+    issMarker.position.copy(pos);
+    issMarker.visible = true;
+
+    // Trail
+    state.issTrail.push(pos.clone());
+    if (state.issTrail.length > 100) state.issTrail.shift();
+    updateISSTrail();
+
+    // Stats
+    document.getElementById('stat-iss-alt').textContent = Math.round(state.iss.alt) + ' km';
+    document.getElementById('stat-iss-region').textContent =
+      `${state.iss.lat.toFixed(1)}°, ${state.iss.lon.toFixed(1)}°`;
+
+    setFeedStatus('ISS', 'ok');
+  } catch (e) {
+    console.error('ISS fetch error:', e);
+    setFeedStatus('ISS', 'error');
+  }
+}
+
+function updateISSTrail() {
+  const positions = issTrailGeo.attributes.position.array;
+  const count = Math.min(state.issTrail.length, 100);
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = state.issTrail[i].x;
+    positions[i * 3 + 1] = state.issTrail[i].y;
+    positions[i * 3 + 2] = state.issTrail[i].z;
+  }
+  issTrailGeo.setDrawRange(0, count);
+  issTrailGeo.attributes.position.needsUpdate = true;
+}
+
+// 3. Aurora / Solar Wind (NOAA SWPC)
+async function fetchSolarWind() {
+  setFeedStatus('Solar Wind', 'loading');
+  try {
+    const [plasma, kpData] = await Promise.all([
+      fetchJSON('https://services.swpc.noaa.gov/products/solar-wind/plasma-5-minute.json'),
+      fetchJSON('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
+    ]);
+
+    // Parse plasma (latest non-null entry) — columns: time_tag, density, speed, temperature
+    for (let i = plasma.length - 1; i >= 1; i--) {
+      const speed = parseFloat(plasma[i][2]);
+      if (!isNaN(speed)) {
+        state.solar.wind = speed;
+        break;
+      }
+    }
+
+    // Parse Kp
+    if (kpData.length > 0) {
+      const latest = kpData[kpData.length - 1];
+      state.solar.kp = parseFloat(latest.kp_index || latest.estimated_kp || 0);
+    }
+
+    updateSolarUI();
+    setFeedStatus('Solar Wind', 'ok');
+  } catch (e) {
+    console.error('Solar wind fetch error:', e);
+    setFeedStatus('Solar Wind', 'error');
+  }
+}
+
+// 4. X-ray flux
+async function fetchXray() {
+  setFeedStatus('X-Ray', 'loading');
+  try {
+    const data = await fetchJSON('https://services.swpc.noaa.gov/json/goes/primary/xrays-7-day.json');
+    // Get latest measurement
+    for (let i = data.length - 1; i >= 0; i--) {
+      if (data[i].flux !== null) {
+        state.solar.xray = data[i].flux;
+        break;
+      }
+    }
+    updateSolarUI();
+    setFeedStatus('X-Ray', 'ok');
+  } catch (e) {
+    console.error('X-ray fetch error:', e);
+    setFeedStatus('X-Ray', 'error');
+  }
+}
+
+function updateSolarUI() {
+  // X-ray
+  if (state.solar.xray !== null) {
+    const logFlux = Math.log10(state.solar.xray);
+    // Scale: -8 (A) to -3 (X) mapped to 0-100%
+    const pct = Math.max(0, Math.min(100, ((logFlux + 8) / 5) * 100));
+    const fluxStr = state.solar.xray.toExponential(1);
+    document.getElementById('xray-value').textContent = fluxStr;
+    document.getElementById('xray-bar').style.width = pct + '%';
+    const xColor = pct > 80 ? 'var(--red)' : pct > 60 ? 'var(--orange)' : 'var(--yellow)';
+    document.getElementById('xray-value').style.color = xColor;
+    document.getElementById('xray-bar').style.background = xColor;
+  }
+
+  // Kp
+  if (state.solar.kp !== null) {
+    const kp = state.solar.kp;
+    const pct = Math.min(100, (kp / 9) * 100);
+    document.getElementById('kp-value').textContent = kp.toFixed(1);
+    document.getElementById('kp-bar').style.width = pct + '%';
+    const kColor = kpToColor(kp);
+    document.getElementById('kp-value').style.color = kColor;
+    document.getElementById('kp-bar').style.background = kColor;
+    document.getElementById('stat-aurora').textContent = kp.toFixed(1);
+    document.getElementById('stat-aurora-sub').textContent =
+      kp >= 5 ? 'Storm active' : kp >= 3 ? 'Unsettled' : 'Quiet';
+
+    // Update aurora band opacity based on Kp
+    const auroraOpacity = Math.min(0.6, 0.05 + (kp / 9) * 0.55);
+    auroraGroup.children.forEach(child => {
+      child.material.opacity = auroraOpacity;
+    });
+
+    document.getElementById('dot-solar').className = 'dot' + (kp >= 5 ? ' alert' : kp >= 3 ? ' warn' : '');
+    document.getElementById('solar-status').textContent = `Solar: Kp ${kp.toFixed(1)}`;
+  }
+
+  // Wind
+  if (state.solar.wind !== null) {
+    const wind = state.solar.wind;
+    const pct = Math.min(100, (wind / 800) * 100);
+    document.getElementById('wind-value').textContent = Math.round(wind) + ' km/s';
+    document.getElementById('wind-bar').style.width = pct + '%';
+    const wColor = wind > 600 ? 'var(--red)' : wind > 400 ? 'var(--orange)' : 'var(--accent)';
+    document.getElementById('wind-value').style.color = wColor;
+    document.getElementById('wind-bar').style.background = wColor;
+
+    // Adjust solar particle speed
+    const speedFactor = wind / 400;
+    solarVelocities.forEach((v, i) => {
+      solarVelocities[i] = (-0.01 - Math.random() * 0.02) * speedFactor;
+    });
+  }
+
+  runCorrelation();
+}
+
+// 5. Volcanoes
+async function fetchVolcanoes() {
+  setFeedStatus('Volcanoes', 'loading');
+  try {
+    const data = await fetchJSON('https://volcanoes.usgs.gov/hans-public/api/volcano/getElevatedVolcanoes');
+    state.volcanoes = (Array.isArray(data) ? data : []).map(v => ({
+      name: v.volcanoName || v.name,
+      lat: parseFloat(v.latitude || v.lat),
+      lon: parseFloat(v.longitude || v.lng),
+      alert: v.alertLevel || v.alert_level,
+      color: v.colorCode || v.aviation_color_code,
+    })).filter(v => !isNaN(v.lat) && !isNaN(v.lon));
+
+    renderVolcanoes();
+    document.getElementById('stat-volcanoes').textContent = state.volcanoes.length;
+    setFeedStatus('Volcanoes', 'ok');
+
+    if (state.volcanoes.length > 0) {
+      const warn = state.volcanoes.filter(v => v.alert === 'WARNING' || v.alert === 'WATCH');
+      if (warn.length > 0) {
+        addEvent('volcano', `${warn[0].name} at ${warn[0].alert} alert level`, new Date());
+      }
+    }
+  } catch (e) {
+    console.error('Volcano fetch error:', e);
+    setFeedStatus('Volcanoes', 'error');
+  }
+}
+
+function renderVolcanoes() {
+  while (dataGroups.volcanoes.children.length) {
+    dataGroups.volcanoes.remove(dataGroups.volcanoes.children[0]);
+  }
+  state.volcanoes.forEach(v => {
+    const { cone, ring } = createVolcanoMarker(v.lat, v.lon, v.alert);
+    dataGroups.volcanoes.add(cone);
+    dataGroups.volcanoes.add(ring);
+  });
+}
+
+// 6. Asteroids (NASA NeoWs)
+async function fetchAsteroids() {
+  setFeedStatus('Asteroids', 'loading');
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const data = await fetchJSON(`https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=DEMO_KEY`);
+    const neos = data.near_earth_objects[today] || [];
+    state.asteroids = neos.map(a => ({
+      name: a.name,
+      diameter: (a.estimated_diameter.meters.estimated_diameter_min + a.estimated_diameter.meters.estimated_diameter_max) / 2,
+      missDistance: parseFloat(a.close_approach_data[0]?.miss_distance?.lunar || 0),
+      velocity: parseFloat(a.close_approach_data[0]?.relative_velocity?.kilometers_per_second || 0),
+      hazardous: a.is_potentially_hazardous_asteroid,
+    }));
+
+    document.getElementById('stat-asteroids').textContent = state.asteroids.length;
+    setFeedStatus('Asteroids', 'ok');
+
+    const hazardous = state.asteroids.filter(a => a.hazardous);
+    if (hazardous.length > 0) {
+      addEvent('asteroid', `${hazardous.length} potentially hazardous asteroid(s) near Earth today`, new Date());
+    }
+
+    renderAsteroids();
+  } catch (e) {
+    console.error('Asteroid fetch error:', e);
+    setFeedStatus('Asteroids', 'error');
+  }
+}
+
+function renderAsteroids() {
+  while (dataGroups.asteroids.children.length) {
+    dataGroups.asteroids.remove(dataGroups.asteroids.children[0]);
+  }
+
+  // Show asteroid arcs around the globe
+  state.asteroids.slice(0, 8).forEach((a, i) => {
+    const angle = (i / 8) * Math.PI * 2;
+    const dist = 1.5 + (a.missDistance / 20) * 0.5;
+    const points = [];
+    for (let t = 0; t <= 1; t += 0.02) {
+      const x = Math.cos(angle + t * 0.5) * dist;
+      const y = Math.sin(t * Math.PI - Math.PI / 2) * 0.5 + 0.3;
+      const z = Math.sin(angle + t * 0.5) * dist;
+      points.push(new THREE.Vector3(x, y, z));
+    }
+    const curve = new THREE.CatmullRomCurve3(points);
+    const geo = new THREE.TubeGeometry(curve, 50, a.hazardous ? 0.004 : 0.002, 4, false);
+    const mat = new THREE.MeshBasicMaterial({
+      color: a.hazardous ? 0xff4444 : 0xaa44ff,
+      transparent: true,
+      opacity: 0.4,
+      depthWrite: false,
+    });
+    dataGroups.asteroids.add(new THREE.Mesh(geo, mat));
+  });
+}
+
+// 7. Air Quality (WAQI) — using demo token
+async function fetchAirQuality() {
+  setFeedStatus('Air Quality', 'loading');
+  try {
+    const results = await Promise.allSettled(
+      AQ_CITIES.map(city =>
+        fetchJSON(`https://api.waqi.info/feed/geo:${city.lat};${city.lon}/?token=demo`)
+          .then(data => ({ ...city, aqi: data?.data?.aqi || null }))
+      )
+    );
+
+    const aqData = results
+      .filter(r => r.status === 'fulfilled' && r.value.aqi !== null && typeof r.value.aqi === 'number')
+      .map(r => r.value);
+
+    renderAirQuality(aqData);
+    setFeedStatus('Air Quality', aqData.length > 0 ? 'ok' : 'error');
+  } catch (e) {
+    console.error('AQ fetch error:', e);
+    setFeedStatus('Air Quality', 'error');
+  }
+}
+
+function renderAirQuality(data) {
+  while (dataGroups.airquality.children.length) {
+    dataGroups.airquality.remove(dataGroups.airquality.children[0]);
+  }
+  data.forEach(city => {
+    const color = aqiToColor(city.aqi);
+    const geo = new THREE.RingGeometry(0.006, 0.01, 16);
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false,
+    });
+    const ring = new THREE.Mesh(geo, mat);
+    ring.position.copy(latLonToVec3(city.lat, city.lon, EARTH_RADIUS + 0.004));
+    ring.lookAt(new THREE.Vector3(0, 0, 0));
+    dataGroups.airquality.add(ring);
+
+    // Inner glow
+    const glowGeo = new THREE.SphereGeometry(0.004, 8, 8);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.copy(latLonToVec3(city.lat, city.lon, EARTH_RADIUS + 0.005));
+    dataGroups.airquality.add(glow);
+  });
+}
+
+// 8. Ocean Temperature (sample points)
+const OCEAN_POINTS = [
+  { lat: 25, lon: -80 }, { lat: 10, lon: -30 }, { lat: -10, lon: 25 },
+  { lat: 30, lon: 140 }, { lat: -30, lon: 160 }, { lat: 0, lon: 80 },
+  { lat: 40, lon: -40 }, { lat: -20, lon: -70 }, { lat: 15, lon: 120 },
+  { lat: -40, lon: 70 }, { lat: 50, lon: -170 }, { lat: -50, lon: -120 },
+];
+
+async function fetchOceanTemp() {
+  setFeedStatus('Ocean', 'loading');
+  try {
+    const results = await Promise.allSettled(
+      OCEAN_POINTS.map(p =>
+        fetchJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${p.lat}&longitude=${p.lon}&current=sea_surface_temperature`)
+          .then(data => ({
+            ...p,
+            temp: data?.current?.sea_surface_temperature ?? null,
+          }))
+      )
+    );
+
+    const temps = results
+      .filter(r => r.status === 'fulfilled' && r.value.temp !== null)
+      .map(r => r.value);
+
+    renderOceanTemp(temps);
+    setFeedStatus('Ocean', temps.length > 0 ? 'ok' : 'error');
+  } catch (e) {
+    console.error('Ocean temp fetch error:', e);
+    setFeedStatus('Ocean', 'error');
+  }
+}
+
+function renderOceanTemp(data) {
+  while (dataGroups.ocean.children.length) {
+    dataGroups.ocean.remove(dataGroups.ocean.children[0]);
+  }
+  data.forEach(point => {
+    // Temperature color: 0°C = blue, 15°C = cyan, 30°C = red
+    const t = Math.max(0, Math.min(30, point.temp));
+    const color = new THREE.Color().setHSL((1 - t / 30) * 0.6, 0.8, 0.5);
+    const geo = new THREE.SphereGeometry(0.005, 8, 8);
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    const sphere = new THREE.Mesh(geo, mat);
+    sphere.position.copy(latLonToVec3(point.lat, point.lon, EARTH_RADIUS + 0.002));
+    dataGroups.ocean.add(sphere);
+  });
+}
+
+// 9. Simulated lightning (based on known storm-prone regions)
+const STORM_REGIONS = [
+  { lat: 5, lon: 25, spread: 15 },   // Central Africa
+  { lat: 10, lon: 105, spread: 10 },  // SE Asia
+  { lat: -15, lon: -55, spread: 12 }, // Amazon
+  { lat: 30, lon: -90, spread: 8 },   // Gulf of Mexico
+  { lat: -5, lon: 110, spread: 8 },   // Maritime Continent
+  { lat: 10, lon: 75, spread: 6 },    // India
+];
+
+function simulateLightning() {
+  if (!LAYERS.lightning.active) return;
+  const region = STORM_REGIONS[Math.floor(Math.random() * STORM_REGIONS.length)];
+  const lat = region.lat + (Math.random() - 0.5) * region.spread * 2;
+  const lon = region.lon + (Math.random() - 0.5) * region.spread * 2;
+  const flash = createLightningFlash(lat, lon);
+  dataGroups.lightning.add(flash);
+  lightningFlashes.push(flash);
+}
+
+// 10. Cosmic ray proxy (from Kp — inverse correlation)
+// Rendered as faint particle hits on the atmosphere
+const cosmicGeo = new THREE.BufferGeometry();
+const cosmicCount = 50;
+const cosmicPositions = new Float32Array(cosmicCount * 3);
+const cosmicVelocities = [];
+for (let i = 0; i < cosmicCount; i++) {
+  resetCosmicParticle(i);
+}
+cosmicGeo.setAttribute('position', new THREE.BufferAttribute(cosmicPositions, 3));
+const cosmicMat = new THREE.PointsMaterial({
+  color: 0xff44aa,
+  size: 0.008,
+  transparent: true,
+  opacity: 0.4,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+const cosmicParticles = new THREE.Points(cosmicGeo, cosmicMat);
+dataGroups.cosmic.add(cosmicParticles);
+
+function resetCosmicParticle(i) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  const r = 3 + Math.random() * 2;
+  cosmicPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+  cosmicPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+  cosmicPositions[i * 3 + 2] = r * Math.cos(phi);
+  cosmicVelocities[i] = { vr: -0.005 - Math.random() * 0.01 };
+}
+
+// ─── Event Feed ──────────────────────────────────────────────────────
+function addEvent(type, text, time) {
+  state.events.unshift({ type, text, time });
+  if (state.events.length > 30) state.events.pop();
+  renderEvents();
+}
+
+function renderEvents() {
+  const feed = document.getElementById('event-feed');
+  feed.innerHTML = state.events.slice(0, 15).map(e => `
+    <div class="event-item ${e.type}">
+      <span class="event-time">${formatTimeAgo(e.time)}</span>
+      <span class="event-text">${e.text}</span>
+    </div>
+  `).join('');
+}
+
+// ─── Cross-Feed Correlation Engine ───────────────────────────────────
+function runCorrelation() {
+  const insights = [];
+
+  // Solar storm + aurora
+  if (state.solar.kp >= 5) {
+    insights.push({
+      tag: 'GEOMAGNETIC STORM',
+      text: `Kp index at ${state.solar.kp.toFixed(1)} — geomagnetic storm conditions. Aurora visible at unusually low latitudes. Cosmic ray flux may be suppressed.`,
+    });
+  }
+
+  // High solar wind
+  if (state.solar.wind > 500) {
+    insights.push({
+      tag: 'SOLAR WIND ELEVATED',
+      text: `Solar wind speed at ${Math.round(state.solar.wind)} km/s (normal: ~400). Enhanced auroral activity expected. Satellite systems may experience drag increases.`,
+    });
+  }
+
+  // Earthquake cluster detection
+  if (state.earthquakes.length > 0) {
+    const recent = state.earthquakes.filter(q => Date.now() - q.time < 3600000);
+    const clusters = findClusters(recent, 3, 500); // 3+ quakes within 500km
+    clusters.forEach(cluster => {
+      insights.push({
+        tag: 'SEISMIC CLUSTER',
+        text: `${cluster.count} earthquakes within 500km in the past hour near ${cluster.center.place || 'region'}. Maximum magnitude: M${cluster.maxMag.toFixed(1)}.`,
+      });
+    });
+  }
+
+  // Volcano + earthquake correlation
+  state.volcanoes.forEach(v => {
+    const nearbyQuakes = state.earthquakes.filter(q => {
+      const dist = haversine(v.lat, v.lon, q.lat, q.lon);
+      return dist < 200; // within 200km
+    });
+    if (nearbyQuakes.length >= 2) {
+      insights.push({
+        tag: 'VOLCANIC-SEISMIC',
+        text: `${v.name} (${v.alert}) has ${nearbyQuakes.length} earthquakes within 200km. This may indicate magmatic activity.`,
+      });
+    }
+  });
+
+  // X-ray flare activity
+  if (state.solar.xray && state.solar.xray > 1e-5) {
+    insights.push({
+      tag: 'SOLAR FLARE',
+      text: `X-ray flux elevated at ${state.solar.xray.toExponential(1)} W/m² (M-class or above). Potential for radio blackouts and increased particle flux toward Earth.`,
+    });
+  }
+
+  // Default insight if nothing notable
+  if (insights.length === 0) {
+    const kpStr = state.solar.kp !== null ? state.solar.kp.toFixed(1) : '--';
+    const qStr = state.earthquakes.length;
+    insights.push({
+      tag: 'SYSTEM NOMINAL',
+      text: `All feeds reporting normally. ${qStr} seismic events in past 24h. Kp index at ${kpStr}. No significant cross-feed correlations detected.`,
+    });
+  }
+
+  state.insights = insights;
+  renderInsights();
+}
+
+function findClusters(quakes, minCount, maxDistKm) {
+  const clusters = [];
+  const used = new Set();
+  quakes.forEach((q, i) => {
+    if (used.has(i)) return;
+    const nearby = quakes.filter((q2, j) => {
+      if (i === j || used.has(j)) return false;
+      return haversine(q.lat, q.lon, q2.lat, q2.lon) < maxDistKm;
+    });
+    if (nearby.length + 1 >= minCount) {
+      const all = [q, ...nearby];
+      clusters.push({
+        count: all.length,
+        center: q,
+        maxMag: Math.max(...all.map(a => a.mag)),
+      });
+      used.add(i);
+      nearby.forEach((_, j) => used.add(j));
+    }
+  });
+  return clusters;
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function renderInsights() {
+  const el = document.getElementById('insights');
+  el.innerHTML = state.insights.map(i => `
+    <div class="insight-card">
+      <div class="insight-tag">${i.tag}</div>
+      ${i.text}
+    </div>
+  `).join('');
+}
+
+// ─── Layer Toggles UI ────────────────────────────────────────────────
+function buildLayerToggles() {
+  const container = document.getElementById('layer-toggles');
+  Object.entries(LAYERS).forEach(([key, layer]) => {
+    const div = document.createElement('div');
+    div.className = 'layer-toggle' + (layer.active ? ' active' : '');
+    div.style.color = layer.color;
+    div.innerHTML = `<div class="indicator"></div>${layer.label}`;
+    div.onclick = () => {
+      layer.active = !layer.active;
+      div.classList.toggle('active');
+      if (dataGroups[key]) dataGroups[key].visible = layer.active;
+    };
+    container.appendChild(div);
+  });
+}
+
+// ─── Footer Feed Indicators ──────────────────────────────────────────
+function updateFooterIndicators() {
+  const el = document.getElementById('feed-indicators');
+  el.innerHTML = Object.entries(state.feedStatus).map(([name, status]) => `
+    <div class="feed-status">
+      <div class="indicator ${status === 'ok' ? '' : status}"></div>
+      ${name}
+    </div>
+  `).join('');
+  const okCount = Object.values(state.feedStatus).filter(s => s === 'ok').length;
+  const total = Object.keys(state.feedStatus).length;
+  document.getElementById('dot-feeds').className = 'dot' + (okCount < total / 2 ? ' alert' : okCount < total ? ' warn' : '');
+  document.getElementById('feeds-status').textContent = `${okCount}/${total} feeds active`;
+}
+
+// ─── UTC Clock ───────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('utc-clock').textContent = formatTime(new Date());
+}
+
+// ─── Resize Handler ──────────────────────────────────────────────────
+function onResize() {
+  const rect = container.getBoundingClientRect();
+  camera.aspect = rect.width / rect.height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(rect.width, rect.height);
+}
+window.addEventListener('resize', onResize);
+
+// ─── Animation Loop ──────────────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  const elapsed = clock.getElapsedTime();
+
+  controls.update();
+
+  // Animate earthquake rings (pulse)
+  dataGroups.earthquakes.children.forEach(ring => {
+    const age = (Date.now() - ring.userData.birthTime) / 1000;
+    const pulse = 0.6 + Math.sin(age * 3) * 0.4;
+    ring.material.opacity = Math.max(0.1, pulse * 0.8);
+    ring.scale.setScalar(1 + Math.sin(age * 2) * 0.15);
+  });
+
+  // Animate volcano markers
+  dataGroups.volcanoes.children.forEach(child => {
+    if (child.userData.ring) {
+      const pulse = 0.3 + Math.sin(elapsed * 2) * 0.2;
+      child.userData.ring.material.opacity = pulse;
+    }
+  });
+
+  // Animate ISS glow
+  if (issMarker.visible) {
+    issGlow.material.opacity = 0.2 + Math.sin(elapsed * 4) * 0.15;
+    issGlow.scale.setScalar(1 + Math.sin(elapsed * 3) * 0.3);
+  }
+
+  // Animate solar wind particles
+  const sPos = solarGeo.attributes.position.array;
+  for (let i = 0; i < solarParticleCount; i++) {
+    sPos[i * 3] += solarVelocities[i];
+    // Reset if past Earth
+    if (sPos[i * 3] < -2) {
+      sPos[i * 3] = 3 + Math.random() * 2;
+      sPos[i * 3 + 1] = (Math.random() - 0.5) * 1.5;
+      sPos[i * 3 + 2] = (Math.random() - 0.5) * 1.5;
+    }
+  }
+  solarGeo.attributes.position.needsUpdate = true;
+
+  // Animate cosmic ray particles
+  const cPos = cosmicGeo.attributes.position.array;
+  for (let i = 0; i < cosmicCount; i++) {
+    const dx = -cPos[i * 3];
+    const dy = -cPos[i * 3 + 1];
+    const dz = -cPos[i * 3 + 2];
+    const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const speed = cosmicVelocities[i].vr;
+    cPos[i * 3] += (dx / len) * speed;
+    cPos[i * 3 + 1] += (dy / len) * speed;
+    cPos[i * 3 + 2] += (dz / len) * speed;
+    // Reset if hit atmosphere
+    const r = Math.sqrt(cPos[i * 3] ** 2 + cPos[i * 3 + 1] ** 2 + cPos[i * 3 + 2] ** 2);
+    if (r < 1.1) resetCosmicParticle(i);
+  }
+  cosmicGeo.attributes.position.needsUpdate = true;
+
+  // Animate lightning flashes
+  for (let i = lightningFlashes.length - 1; i >= 0; i--) {
+    const flash = lightningFlashes[i];
+    const age = Date.now() - flash.userData.birthTime;
+    if (age > flash.userData.duration) {
+      dataGroups.lightning.remove(flash);
+      lightningFlashes.splice(i, 1);
+    } else {
+      flash.material.opacity = 1 - (age / flash.userData.duration);
+    }
+  }
+
+  // Sun glow pulse
+  sunGlow.material.opacity = 0.4 + Math.sin(elapsed * 1.5) * 0.2;
+  sunGlow.scale.setScalar(1 + Math.sin(elapsed * 0.8) * 0.1);
+
+  renderer.render(scene, camera);
+}
+
+// ─── Init ────────────────────────────────────────────────────────────
+function init() {
+  onResize();
+  buildLayerToggles();
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Lightning simulation
+  setInterval(simulateLightning, 300);
+
+  // Fetch all data
+  fetchEarthquakes();
+  fetchISS();
+  fetchSolarWind();
+  fetchXray();
+  fetchVolcanoes();
+  fetchAsteroids();
+  fetchAirQuality();
+  fetchOceanTemp();
+
+  // Set up refresh intervals
+  setInterval(fetchEarthquakes, 60000);       // 1 min
+  setInterval(fetchISS, 5000);                 // 5 sec
+  setInterval(fetchSolarWind, 300000);         // 5 min
+  setInterval(fetchXray, 300000);              // 5 min
+  setInterval(fetchVolcanoes, 600000);         // 10 min
+  setInterval(fetchAsteroids, 3600000);        // 1 hr
+  setInterval(fetchAirQuality, 1800000);       // 30 min
+  setInterval(fetchOceanTemp, 1800000);        // 30 min
+
+  animate();
+
+  // Initial event
+  addEvent('iss', 'Earth Pulse initialized — tracking 10 live feeds', new Date());
+}
+
+init();
+</script>
+</body>
+</html>
