@@ -970,18 +970,26 @@
 
     #footer .feed-status { display: none; }
 
-    /* About modal adjustments */
+    /* About modal adjustments — 2x font sizes on mobile */
     #about-modal {
       width: 96%;
-      padding: 24px 20px 20px;
+      padding: 32px 24px 24px;
       max-height: 90vh;
       border-radius: 12px;
     }
 
-    #about-modal h2 { font-size: 17px; }
-    #about-modal .about-section p { font-size: 11px; }
-    #about-modal .feed-grid { grid-template-columns: 1fr 1fr; gap: 4px; }
-    #about-modal .feed-chip { font-size: 9px; padding: 4px 6px; }
+    #about-modal .about-icon { font-size: 72px; margin-bottom: 16px; }
+    #about-modal h2 { font-size: 40px; }
+    #about-modal .about-version { font-size: 20px; margin-bottom: 28px; }
+    #about-modal .about-section h3 { font-size: 20px; margin-bottom: 12px; }
+    #about-modal .about-section p { font-size: 24px; line-height: 1.6; }
+    #about-modal .feed-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    #about-modal .feed-chip { font-size: 20px; padding: 8px 12px; }
+    #about-modal .feed-chip .dot { width: 12px; height: 12px; }
+    #about-modal .about-hint { font-size: 20px; margin-top: 28px; padding-top: 20px; }
+    #about-modal .about-hint kbd { font-size: 20px; padding: 4px 10px; }
+    #about-modal .about-btn { font-size: 24px; padding: 18px; letter-spacing: 2px; }
+    #about-modal .about-close { font-size: 36px; width: 48px; height: 48px; }
   }
 
   /* ── Mobile sidebar backdrop ── */
@@ -998,6 +1006,323 @@
   #sidebar-backdrop.visible {
     display: block;
     opacity: 1;
+  }
+
+  /* ── Planet Brain AI Card ──────────────────────────────────────── */
+  #planet-brain {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    width: 320px;
+    background: rgba(10, 10, 18, 0.85);
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    border-radius: 12px;
+    z-index: 40;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px rgba(0,212,255,0.06);
+    overflow: hidden;
+    transition: all 0.35s cubic-bezier(0.16,1,0.3,1);
+    font-size: 10px;
+  }
+
+  #planet-brain.shifted-up { bottom: 340px; }
+
+  .pb-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    gap: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .pb-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .pb-badge {
+    font-size: 8px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(0,212,255,0.15);
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    animation: pb-badge-in 0.5s ease;
+  }
+
+  @keyframes pb-badge-in {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .pb-toggle {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 10px;
+    cursor: pointer;
+    transition: transform 0.3s, color 0.2s;
+    padding: 2px 4px;
+  }
+
+  .pb-toggle:hover { color: var(--text); }
+  .pb-toggle.expanded { transform: rotate(180deg); }
+
+  .pb-collapsed-content {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pb-narration-ticker {
+    flex: 1;
+    font-size: 10px;
+    color: var(--text);
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    margin: 0;
+  }
+
+  .pb-ask-btn {
+    flex-shrink: 0;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.25);
+    border-radius: 6px;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .pb-ask-btn:hover {
+    background: rgba(0,212,255,0.2);
+    border-color: var(--accent);
+  }
+
+  .pb-expanded-content {
+    max-height: 360px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pb-narration-history {
+    padding: 8px 12px;
+    max-height: 120px;
+    overflow-y: auto;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .pb-narration-history::-webkit-scrollbar { width: 3px; }
+  .pb-narration-history::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .pb-narration-item {
+    font-size: 10px;
+    color: var(--text);
+    line-height: 1.5;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+    opacity: 0.7;
+  }
+
+  .pb-narration-item:last-child { opacity: 1; border-bottom: none; }
+
+  .pb-narration-time {
+    font-size: 8px;
+    color: var(--text-dim);
+    margin-right: 6px;
+  }
+
+  .pb-chat-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .pb-chat-messages {
+    flex: 1;
+    padding: 8px 12px;
+    overflow-y: auto;
+    max-height: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .pb-chat-messages::-webkit-scrollbar { width: 3px; }
+  .pb-chat-messages::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .pb-chat-msg {
+    font-size: 10px;
+    line-height: 1.5;
+    padding: 6px 10px;
+    border-radius: 8px;
+    max-width: 85%;
+    animation: event-in 0.3s ease;
+  }
+
+  .pb-chat-msg.user {
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.15);
+    color: var(--text);
+    align-self: flex-end;
+  }
+
+  .pb-chat-msg.ai {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text);
+    align-self: flex-start;
+  }
+
+  .pb-chat-input-wrap {
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .pb-chat-input {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 10px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .pb-chat-input:focus { border-color: var(--accent); }
+  .pb-chat-input::placeholder { color: var(--text-dim); }
+
+  .pb-chat-send {
+    background: rgba(0,212,255,0.15);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 6px;
+    color: var(--accent);
+    font-size: 14px;
+    width: 32px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .pb-chat-send:hover { background: rgba(0,212,255,0.25); }
+  .pb-chat-send:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .pb-loading {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pb-loading-bar {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .pb-loading-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  .pb-loading-text {
+    font-size: 9px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .pb-fallback {
+    padding: 10px 12px;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  .pb-fallback a { color: var(--accent); text-decoration: none; }
+
+  /* AI context in info panel (smart tooltips) */
+  .info-ai-context {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .info-ai-label {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .info-ai-text {
+    font-size: 10px;
+    color: var(--text);
+    line-height: 1.6;
+    display: block;
+  }
+
+  .info-ai-thinking {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* Planet Brain responsive — tablet */
+  @media (max-width: 900px) {
+    #planet-brain { width: 280px; bottom: 72px; left: 12px; }
+    #planet-brain.shifted-up { bottom: 340px; }
+  }
+
+  /* Planet Brain responsive — mobile */
+  @media (max-width: 600px) {
+    #planet-brain {
+      width: calc(100vw - 24px);
+      max-width: none;
+      bottom: 64px;
+      left: 12px;
+      border-radius: 10px;
+    }
+    #planet-brain.shifted-up { bottom: calc(64px + 260px + 12px); }
+    .pb-expanded-content { max-height: 50vh; }
+    .pb-narration-ticker { font-size: 9px; }
+    .pb-chat-messages { max-height: 30vh; }
   }
 </style>
 </head>
@@ -1022,6 +1347,36 @@
         <button class="info-panel-close" id="info-close">&times;</button>
       </div>
       <div class="info-panel-body" id="info-body"></div>
+    </div>
+
+    <!-- Planet Brain AI Card -->
+    <div id="planet-brain" style="display:none">
+      <div class="pb-header" id="pb-header">
+        <span class="pb-title">Planet Brain</span>
+        <span class="pb-badge" id="pb-model-badge" style="display:none"></span>
+        <button class="pb-toggle" id="pb-toggle" aria-label="Expand Planet Brain">&#9660;</button>
+      </div>
+      <div class="pb-collapsed-content" id="pb-collapsed">
+        <p class="pb-narration-ticker" id="pb-ticker">Initializing Planet Brain...</p>
+        <button class="pb-ask-btn" id="pb-ask-btn">Ask the Planet</button>
+      </div>
+      <div class="pb-expanded-content" id="pb-expanded" style="display:none">
+        <div class="pb-narration-history" id="pb-narration-history"></div>
+        <div class="pb-chat-section">
+          <div class="pb-chat-messages" id="pb-chat-messages"></div>
+          <div class="pb-chat-input-wrap">
+            <input type="text" class="pb-chat-input" id="pb-chat-input" placeholder="Ask about what's happening..." />
+            <button class="pb-chat-send" id="pb-chat-send" disabled>&#8594;</button>
+          </div>
+        </div>
+      </div>
+      <div class="pb-loading" id="pb-loading" style="display:none">
+        <div class="pb-loading-bar"><div class="pb-loading-fill" id="pb-loading-fill"></div></div>
+        <span class="pb-loading-text" id="pb-loading-text">Loading AI model...</span>
+      </div>
+      <div class="pb-fallback" id="pb-fallback" style="display:none">
+        AI features require WebGPU.<br><a href="https://caniuse.com/webgpu" target="_blank">Chrome 113+ or Edge 113+</a>
+      </div>
     </div>
   </div>
 
@@ -1163,7 +1518,8 @@
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "@mlc-ai/web-llm": "https://esm.run/@mlc-ai/web-llm"
   }
 }
 </script>
@@ -1171,6 +1527,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CreateMLCEngine } from '@mlc-ai/web-llm';
 
 // ─── Constants ───────────────────────────────────────────────────────
 const EARTH_RADIUS = 1;
@@ -1201,6 +1558,108 @@ const state = {
   insights: [],
   feedStatus: {},
 };
+
+// ─── AI State (Planet Brain) ────────────────────────────────────────
+const aiState = {
+  engine: null,
+  ready: false,
+  enhanced: false,
+  generating: false,
+  narrations: [],
+  chatHistory: [],
+  currentModel: null,
+  narrationInterval: null,
+  topicIndex: 0,
+  hasWebGPU: false,
+};
+
+const AI_MODELS = {
+  fast: 'SmolLM2-360M-Instruct-q4f16_1-MLC',
+  enhanced: 'Phi-3.5-mini-instruct-q4f16_1-MLC',
+};
+
+const NARRATION_TOPICS = ['seismic', 'solar', 'atmospheric', 'iss', 'volcanic', 'asteroid', 'ocean', 'overview'];
+const NARRATION_INTERVAL_MS = 45000;
+const ENHANCED_MODEL_DELAY_MS = 60000;
+const IS_MOBILE = () => window.innerWidth <= 600;
+
+function buildStateContext() {
+  const parts = [];
+  const qCount = state.earthquakes.length;
+  const maxQ = state.earthquakes.reduce((a, b) => (a.mag || 0) > (b.mag || 0) ? a : b, { mag: 0 });
+  const recentHour = state.earthquakes.filter(q => Date.now() - q.time < 3600000).length;
+  parts.push(`Earthquakes: ${qCount} events (past 24h), ${recentHour} in past hour. Strongest: M${maxQ.mag?.toFixed(1) || '--'} near ${maxQ.place || 'unknown'}.`);
+  if (state.iss) {
+    parts.push(`ISS: Altitude ${Math.round(state.iss.alt)}km, position ${state.iss.lat.toFixed(1)}°lat ${state.iss.lon.toFixed(1)}°lon, velocity ${Math.round(state.iss.velocity).toLocaleString()}km/h, visibility: ${state.iss.visibility || 'unknown'}.`);
+  }
+  const kp = state.solar.kp;
+  const wind = state.solar.wind;
+  const xray = state.solar.xray;
+  const kpLabel = kp >= 7 ? 'severe storm' : kp >= 5 ? 'storm' : kp >= 3 ? 'unsettled' : 'quiet';
+  parts.push(`Solar: Kp ${kp?.toFixed(1) || '--'} (${kpLabel}), X-ray ${xray ? xray.toExponential(1) + ' W/m²' : '--'}, Wind ${wind ? Math.round(wind) + ' km/s' : '--'}.`);
+  if (state.volcanoes.length > 0) {
+    const volcNames = state.volcanoes.slice(0, 5).map(v => `${v.name} (${v.alert})`).join(', ');
+    parts.push(`Volcanoes: ${state.volcanoes.length} elevated — ${volcNames}.`);
+  } else {
+    parts.push('Volcanoes: No elevated alerts.');
+  }
+  const hazCount = state.asteroids.filter(a => a.hazardous).length;
+  parts.push(`Asteroids: ${state.asteroids.length} near-Earth today, ${hazCount} potentially hazardous.`);
+  if (state.insights.length > 0) {
+    parts.push('Active correlations: ' + state.insights.map(i => `[${i.tag}] ${i.text}`).join(' '));
+  }
+  return parts.join('\n');
+}
+
+function buildSystemPrompt() {
+  return `You are Planet Brain, an Earth science AI embedded in a real-time planet monitoring dashboard called Earth Pulse. You observe 10 live data feeds: earthquakes (USGS), ISS tracking, solar wind & X-ray flux (NOAA SWPC), aurora/geomagnetic activity, volcanoes (USGS), near-Earth asteroids (NASA), ocean surface temperature, air quality, lightning patterns, and cosmic rays.
+
+Your role is to provide brief, insightful commentary about what is happening on Earth right now. Rules:
+- Be concise: 1-2 sentences maximum unless specifically asked for more.
+- Be scientifically accurate and cite specific numbers from the data.
+- Be accessible to curious non-experts. Avoid jargon without explanation.
+- Connect phenomena when correlations exist (e.g., high Kp = aurora + suppressed cosmic rays).
+- Never be alarmist. Present data factually with appropriate context.
+- When asked questions, answer based strictly on the current data provided below.
+
+CURRENT EARTH STATUS:
+${buildStateContext()}`;
+}
+
+function getNarrationPrompt() {
+  const topic = NARRATION_TOPICS[aiState.topicIndex % NARRATION_TOPICS.length];
+  aiState.topicIndex++;
+  const prompts = {
+    seismic: 'Generate a 1-2 sentence insight about current seismic activity. Reference specific magnitudes and locations.',
+    solar: 'Generate a 1-2 sentence insight about current solar and space weather conditions. Reference Kp, X-ray flux, or solar wind speed.',
+    atmospheric: 'Generate a 1-2 sentence insight about aurora conditions or air quality patterns visible in the data.',
+    iss: 'Generate a 1-2 sentence insight about the ISS — its current position, what region it is over, or its orbital parameters.',
+    volcanic: 'Generate a 1-2 sentence insight about current volcanic activity or the lack thereof.',
+    asteroid: 'Generate a 1-2 sentence insight about near-Earth objects passing by today.',
+    ocean: 'Generate a 1-2 sentence insight about ocean surface temperatures and what they indicate.',
+    overview: 'Generate a 1-2 sentence big-picture summary of Earth\'s current state across all monitored systems.',
+  };
+  return prompts[topic] || prompts.overview;
+}
+
+function buildInfoPanelPrompt(d) {
+  switch (d.type) {
+    case 'earthquake':
+      return `Provide 2-3 sentences of context about this M${d.mag.toFixed(1)} earthquake at ${d.depth.toFixed(0)}km depth near ${d.place || 'this region'}. What does this magnitude feel like? Is this region seismically active?`;
+    case 'volcano':
+      return `Provide 2-3 sentences of context about ${d.name} volcano at ${d.alert} alert level. What does this alert level mean? Is there any nearby seismic activity?`;
+    case 'iss':
+      return `Provide 2-3 sentences about the ISS at its current position. What country or ocean is it over? What can astronauts likely see?`;
+    case 'asteroid':
+      return `Provide 2-3 sentences about this near-Earth object: ${d.name}, ${Math.round(d.diameter)}m diameter, passing at ${d.missDistance.toFixed(1)} lunar distances at ${d.velocity.toFixed(1)} km/s. ${d.hazardous ? 'It is classified as potentially hazardous.' : ''} Put the miss distance in perspective.`;
+    case 'airquality':
+      return `Provide 2-3 sentences about AQI ${d.aqi} at ${d.name}. What does this level mean for health?`;
+    case 'ocean':
+      return `Provide 2-3 sentences about ocean surface temperature of ${d.temp?.toFixed(1)}°C at ${d.lat.toFixed(1)}°, ${d.lon.toFixed(1)}°. Is this warm or cool for this region?`;
+    default:
+      return 'Provide 2-3 sentences of context about this data point.';
+  }
+}
 
 // ─── Utilities ───────────────────────────────────────────────────────
 function latLonToVec3(lat, lon, radius) {
@@ -1640,6 +2099,8 @@ infoClose.addEventListener('click', (e) => {
 function closeInfoPanel() {
   infoPanel.style.display = 'none';
   controls.autoRotate = true;
+  const pb = document.getElementById('planet-brain');
+  if (pb) pb.classList.remove('shifted-up');
 }
 
 // Data-type color map — keeps everything visually consistent
@@ -1748,6 +2209,21 @@ function showInfoPanel(d) {
         <div class="info-row"><span class="info-label">Velocity</span><span class="info-value">${d.velocity.toFixed(1)} km/s</span></div>
       `;
       break;
+  }
+
+  // Shift Planet Brain up when info panel is shown
+  const pb = document.getElementById('planet-brain');
+  if (pb) pb.classList.add('shifted-up');
+
+  // Smart tooltip: append AI context and trigger generation
+  if (aiState.ready) {
+    infoBody.innerHTML += `
+      <div class="info-ai-context" id="info-ai-context">
+        <div class="info-ai-label">🧠 AI CONTEXT</div>
+        <span class="info-ai-text info-ai-thinking" id="info-ai-text">Analyzing...</span>
+      </div>
+    `;
+    requestInfoPanelAI(d);
   }
 }
 
@@ -2512,6 +2988,9 @@ function init() {
 
   // Initial event
   addEvent('iss', 'Earth Pulse initialized — tracking 10 live feeds', new Date());
+
+  // Initialize Planet Brain AI (async, non-blocking)
+  initPlanetBrain();
 }
 
 // Mobile sidebar toggle
@@ -2588,6 +3067,299 @@ function init() {
   // ESC key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !overlay.classList.contains('hidden')) dismiss();
+  });
+})();
+
+// ─── Planet Brain AI Engine ─────────────────────────────────────────
+async function initPlanetBrain() {
+  const pbCard = document.getElementById('planet-brain');
+  const pbLoading = document.getElementById('pb-loading');
+  const pbLoadingFill = document.getElementById('pb-loading-fill');
+  const pbLoadingText = document.getElementById('pb-loading-text');
+  const pbFallback = document.getElementById('pb-fallback');
+  const pbCollapsed = document.getElementById('pb-collapsed');
+
+  pbCard.style.display = '';
+
+  if (!navigator.gpu) {
+    aiState.hasWebGPU = false;
+    pbLoading.style.display = 'none';
+    pbFallback.style.display = '';
+    pbCollapsed.style.display = 'flex';
+    startFallbackNarration();
+    return;
+  }
+
+  aiState.hasWebGPU = true;
+  pbLoading.style.display = 'flex';
+  pbCollapsed.style.display = 'none';
+
+  try {
+    aiState.engine = await CreateMLCEngine(AI_MODELS.fast, {
+      initProgressCallback: (progress) => {
+        const pct = Math.round((progress.progress || 0) * 100);
+        pbLoadingFill.style.width = pct + '%';
+        pbLoadingText.textContent = progress.text || `Loading AI (${pct}%)...`;
+      },
+    });
+
+    aiState.currentModel = AI_MODELS.fast;
+    aiState.ready = true;
+
+    pbLoading.style.display = 'none';
+    pbCollapsed.style.display = 'flex';
+    document.getElementById('pb-chat-send').disabled = false;
+
+    generateNarration();
+    aiState.narrationInterval = setInterval(generateNarration, NARRATION_INTERVAL_MS);
+
+    if (!IS_MOBILE()) {
+      setTimeout(loadEnhancedModel, ENHANCED_MODEL_DELAY_MS);
+    }
+
+  } catch (e) {
+    console.error('Planet Brain init error:', e);
+    pbLoading.style.display = 'none';
+    pbCollapsed.style.display = 'flex';
+    const ticker = document.getElementById('pb-ticker');
+    if (ticker) ticker.textContent = 'AI model unavailable — using rule-based analysis';
+    document.getElementById('pb-ask-btn').style.display = 'none';
+    startFallbackNarration();
+  }
+}
+
+async function loadEnhancedModel() {
+  if (aiState.enhanced || !aiState.ready) return;
+  try {
+    const bgEngine = await CreateMLCEngine(AI_MODELS.enhanced, {
+      initProgressCallback: (progress) => {
+        console.log('Enhanced model:', progress.text);
+      },
+    });
+    aiState.engine = bgEngine;
+    aiState.currentModel = AI_MODELS.enhanced;
+    aiState.enhanced = true;
+    const badge = document.getElementById('pb-model-badge');
+    badge.textContent = '🧠 Enhanced';
+    badge.style.display = '';
+  } catch (e) {
+    console.error('Enhanced model load failed (non-fatal):', e);
+  }
+}
+
+// ─── Narration System ───────────────────────────────────────────────
+async function generateNarration() {
+  if (!aiState.ready || aiState.generating) return;
+  aiState.generating = true;
+  const ticker = document.getElementById('pb-ticker');
+
+  try {
+    const systemPrompt = buildSystemPrompt();
+    const userPrompt = getNarrationPrompt();
+    let fullText = '';
+    const chunks = await aiState.engine.chat.completions.create({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      stream: true,
+      max_tokens: 100,
+      temperature: 0.7,
+    });
+
+    for await (const chunk of chunks) {
+      const delta = chunk.choices[0]?.delta?.content || '';
+      fullText += delta;
+      ticker.textContent = fullText;
+    }
+
+    if (fullText.trim()) {
+      aiState.narrations.unshift({ text: fullText.trim(), time: new Date() });
+      if (aiState.narrations.length > 20) aiState.narrations.pop();
+      renderNarrationHistory();
+    }
+  } catch (e) {
+    console.error('Narration generation error:', e);
+    ticker.textContent = state.insights[0]?.text || 'Monitoring Earth systems...';
+  } finally {
+    aiState.generating = false;
+  }
+}
+
+function startFallbackNarration() {
+  const ticker = document.getElementById('pb-ticker');
+  let idx = 0;
+  function update() {
+    if (state.insights.length > 0) {
+      const insight = state.insights[idx % state.insights.length];
+      ticker.textContent = `[${insight.tag}] ${insight.text}`;
+      idx++;
+    } else {
+      ticker.textContent = 'Monitoring Earth systems...';
+    }
+  }
+  update();
+  setInterval(update, 30000);
+}
+
+function renderNarrationHistory() {
+  const container = document.getElementById('pb-narration-history');
+  container.innerHTML = aiState.narrations.slice(0, 10).map(n => `
+    <div class="pb-narration-item">
+      <span class="pb-narration-time">${formatTimeAgo(n.time)}</span>
+      ${n.text}
+    </div>
+  `).join('');
+}
+
+// ─── Chat System ────────────────────────────────────────────────────
+async function sendChatMessage() {
+  if (!aiState.ready || aiState.generating) return;
+  const input = document.getElementById('pb-chat-input');
+  const question = input.value.trim();
+  if (!question) return;
+
+  input.value = '';
+  aiState.generating = true;
+
+  const messagesContainer = document.getElementById('pb-chat-messages');
+
+  const userDiv = document.createElement('div');
+  userDiv.className = 'pb-chat-msg user';
+  userDiv.textContent = question;
+  messagesContainer.appendChild(userDiv);
+
+  const aiDiv = document.createElement('div');
+  aiDiv.className = 'pb-chat-msg ai';
+  aiDiv.textContent = '...';
+  messagesContainer.appendChild(aiDiv);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  const systemPrompt = buildSystemPrompt();
+  const messages = [{ role: 'system', content: systemPrompt }];
+  const recentHistory = aiState.chatHistory.slice(-6);
+  recentHistory.forEach(msg => messages.push(msg));
+  messages.push({ role: 'user', content: question });
+
+  try {
+    let fullText = '';
+    const chunks = await aiState.engine.chat.completions.create({
+      messages,
+      stream: true,
+      max_tokens: 200,
+      temperature: 0.7,
+    });
+
+    for await (const chunk of chunks) {
+      const delta = chunk.choices[0]?.delta?.content || '';
+      fullText += delta;
+      aiDiv.textContent = fullText;
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    aiState.chatHistory.push({ role: 'user', content: question });
+    aiState.chatHistory.push({ role: 'assistant', content: fullText.trim() });
+    if (aiState.chatHistory.length > 20) aiState.chatHistory = aiState.chatHistory.slice(-12);
+
+  } catch (e) {
+    console.error('Chat error:', e);
+    aiDiv.textContent = 'Sorry, I encountered an error. Please try again.';
+  } finally {
+    aiState.generating = false;
+  }
+}
+
+// ─── Smart Data Tooltips (AI in info panel) ─────────────────────────
+async function requestInfoPanelAI(d) {
+  if (!aiState.ready || !aiState.engine) return;
+
+  const waitForIdle = () => new Promise(resolve => {
+    if (!aiState.generating) return resolve();
+    const check = setInterval(() => {
+      if (!aiState.generating) { clearInterval(check); resolve(); }
+    }, 200);
+    setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+  });
+
+  await waitForIdle();
+
+  const textEl = document.getElementById('info-ai-text');
+  if (!textEl) return;
+
+  aiState.generating = true;
+
+  try {
+    let fullText = '';
+    const chunks = await aiState.engine.chat.completions.create({
+      messages: [
+        { role: 'system', content: buildSystemPrompt() },
+        { role: 'user', content: buildInfoPanelPrompt(d) },
+      ],
+      stream: true,
+      max_tokens: 150,
+      temperature: 0.6,
+    });
+
+    for await (const chunk of chunks) {
+      const delta = chunk.choices[0]?.delta?.content || '';
+      fullText += delta;
+      const el = document.getElementById('info-ai-text');
+      if (!el) break;
+      el.textContent = fullText;
+      el.classList.remove('info-ai-thinking');
+    }
+  } catch (e) {
+    console.error('Info panel AI error:', e);
+    const el = document.getElementById('info-ai-text');
+    if (el) { el.textContent = ''; el.classList.remove('info-ai-thinking'); }
+  } finally {
+    aiState.generating = false;
+  }
+}
+
+// ─── Planet Brain UI ────────────────────────────────────────────────
+(function setupPlanetBrain() {
+  const pbToggle = document.getElementById('pb-toggle');
+  const pbCollapsed = document.getElementById('pb-collapsed');
+  const pbExpanded = document.getElementById('pb-expanded');
+  const pbAskBtn = document.getElementById('pb-ask-btn');
+  const pbHeader = document.getElementById('pb-header');
+  const pbChatInput = document.getElementById('pb-chat-input');
+  const pbChatSend = document.getElementById('pb-chat-send');
+  let expanded = false;
+
+  function expand() {
+    expanded = true;
+    pbCollapsed.style.display = 'none';
+    pbExpanded.style.display = 'flex';
+    pbToggle.classList.add('expanded');
+    renderNarrationHistory();
+  }
+
+  function collapse() {
+    expanded = false;
+    pbCollapsed.style.display = 'flex';
+    pbExpanded.style.display = 'none';
+    pbToggle.classList.remove('expanded');
+  }
+
+  pbHeader.addEventListener('click', () => {
+    if (expanded) collapse(); else expand();
+  });
+
+  pbAskBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    expand();
+    setTimeout(() => pbChatInput.focus(), 100);
+  });
+
+  pbChatSend.addEventListener('click', sendChatMessage);
+
+  pbChatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
   });
 })();
 
