@@ -1,9 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" prefix="og: https://ogp.me/ns#">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Earth Pulse — Real-Time Planet Dashboard</title>
+<title>Earth Pulse — Real-Time 3D Planet Dashboard | 10 Live Data Feeds</title>
+
+<!-- SEO Meta -->
+<meta name="description" content="Real-time 3D planet dashboard visualizing 10 live data feeds on an interactive Three.js globe. Track earthquakes, ISS position, solar wind, aurora, volcanoes, asteroids, ocean temperatures, air quality, lightning, and cosmic rays — all with cross-feed AI correlation.">
+<meta name="keywords" content="earth pulse, real-time dashboard, 3D globe, earthquake tracker, ISS tracker, solar wind, aurora forecast, volcano monitoring, asteroid tracker, ocean temperature, air quality, three.js, data visualization, space weather, seismic activity, NOAA, NASA, USGS">
+<meta name="author" content="Ryan Price">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<link rel="canonical" href="https://sentedge.ai/earth-pulse/">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sentedge.ai/earth-pulse/">
+<meta property="og:title" content="Earth Pulse — Real-Time 3D Planet Dashboard">
+<meta property="og:description" content="10 live data feeds on one interactive 3D globe. Earthquakes, ISS, solar wind, aurora, volcanoes, asteroids, ocean temps, air quality, lightning, and cosmic rays — with cross-feed AI correlation.">
+<meta property="og:image" content="https://sentedge.ai/assets/earth-pulse/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Earth Pulse dashboard showing a 3D globe with real-time earthquake, ISS, and solar activity data overlays">
+<meta property="og:site_name" content="SentEdge AI">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://sentedge.ai/earth-pulse/">
+<meta name="twitter:title" content="Earth Pulse — Real-Time 3D Planet Dashboard">
+<meta name="twitter:description" content="10 live data feeds on one interactive 3D globe. Track earthquakes, ISS, solar wind, aurora, volcanoes, and more with cross-feed AI correlation.">
+<meta name="twitter:image" content="https://sentedge.ai/assets/earth-pulse/og-image.png">
+<meta name="twitter:image:alt" content="Earth Pulse 3D globe dashboard with real-time geophysical and space weather data">
+
+<!-- GEO Metadata -->
+<meta name="geo.region" content="US">
+<meta name="geo.placename" content="Global">
+<meta name="ICBM" content="0, 0">
+<meta name="geo.position" content="0;0">
+
+<!-- Additional SEO -->
+<meta name="theme-color" content="#0a0a0f">
+<meta name="color-scheme" content="dark">
+<meta name="application-name" content="Earth Pulse">
+<meta name="apple-mobile-web-app-title" content="Earth Pulse">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+
+<!-- JSON-LD Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Earth Pulse",
+  "alternateName": "Earth Pulse Real-Time Planet Dashboard",
+  "description": "Real-time 3D planet dashboard visualizing 10 live data feeds on an interactive Three.js globe with cross-feed AI correlation engine.",
+  "url": "https://sentedge.ai/earth-pulse/",
+  "image": "https://sentedge.ai/assets/earth-pulse/og-image.png",
+  "screenshot": "https://sentedge.ai/assets/earth-pulse/og-image.png",
+  "applicationCategory": "DataVisualization",
+  "applicationSubCategory": "Geospatial Dashboard",
+  "operatingSystem": "Any (Web Browser)",
+  "browserRequirements": "Requires WebGL-capable browser",
+  "softwareVersion": "1.0",
+  "author": {
+    "@type": "Person",
+    "name": "Ryan Price",
+    "url": "https://sentedge.ai"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "SentEdge AI",
+    "url": "https://sentedge.ai"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "featureList": [
+    "Real-time earthquake visualization (USGS)",
+    "ISS position tracking",
+    "Solar wind and X-ray flux monitoring (NOAA SWPC)",
+    "Aurora probability mapping",
+    "Active volcano monitoring (USGS HANS)",
+    "Near-Earth asteroid tracking (NASA NeoWs)",
+    "Sea surface temperature readings (Open-Meteo)",
+    "Global air quality index (WAQI)",
+    "Lightning simulation",
+    "Cosmic ray visualization",
+    "Cross-feed AI correlation engine"
+  ],
+  "keywords": "earthquake tracker, ISS tracker, solar wind, aurora, volcano, asteroid, ocean temperature, air quality, 3D globe, data visualization",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "inLanguage": "en",
+  "about": [
+    {
+      "@type": "Thing",
+      "name": "Earthquake",
+      "sameAs": "https://en.wikipedia.org/wiki/Earthquake"
+    },
+    {
+      "@type": "Thing",
+      "name": "International Space Station",
+      "sameAs": "https://en.wikipedia.org/wiki/International_Space_Station"
+    },
+    {
+      "@type": "Thing",
+      "name": "Space weather",
+      "sameAs": "https://en.wikipedia.org/wiki/Space_weather"
+    },
+    {
+      "@type": "Thing",
+      "name": "Aurora",
+      "sameAs": "https://en.wikipedia.org/wiki/Aurora_(astronomy)"
+    }
+  ]
+}
+</script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
