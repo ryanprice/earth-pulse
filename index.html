@@ -295,33 +295,6 @@
     box-shadow: 0 0 6px currentColor;
   }
 
-  /* Satellite loading indicator */
-  #satellite-loading {
-    position: absolute;
-    bottom: 60px;
-    left: 20px;
-    font-size: 11px;
-    color: var(--text-dim);
-    background: rgba(13,13,20,0.9);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 12px;
-    z-index: 10;
-    display: none;
-    align-items: center;
-    gap: 8px;
-  }
-  #satellite-loading.visible { display: flex; }
-  #satellite-loading .spinner {
-    width: 12px;
-    height: 12px;
-    border: 2px solid var(--text-dim);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: sat-spin 0.8s linear infinite;
-  }
-  @keyframes sat-spin { to { transform: rotate(360deg); } }
-
   /* Sidebar */
   #sidebar {
     background: var(--panel);
@@ -1489,7 +1462,6 @@
   <div id="globe-container">
     <canvas id="globe-canvas"></canvas>
     <div id="layer-toggles"></div>
-    <div id="satellite-loading"><div class="spinner"></div><span>Loading satellite imagery...</span></div>
     <button id="locate-btn" title="Find my location" aria-label="Locate me on the globe">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
@@ -1616,7 +1588,7 @@
 
   <div id="footer">
     <div id="feed-indicators"></div>
-    <span style="margin-left:auto">11 FEEDS | EARTH PULSE</span>
+    <span style="margin-left:auto">10 FEEDS | EARTH PULSE</span>
   </div>
 </div>
 
@@ -1694,7 +1666,6 @@ import { CreateMLCEngine } from '@mlc-ai/web-llm';
 const EARTH_RADIUS = 1;
 const ATMOSPHERE_RADIUS = 1.06;
 const LAYERS = {
-  satellite:   { label: 'Satellite', color: '#22aaff', active: true },
   earthquakes: { label: 'Earthquakes', color: '#ff4444', active: true },
   iss:         { label: 'ISS Track', color: '#00d4ff', active: true },
   aurora:      { label: 'Aurora', color: '#44ff88', active: true },
@@ -1744,13 +1715,6 @@ const NARRATION_TOPICS = ['seismic', 'solar', 'atmospheric', 'iss', 'volcanic', 
 const NARRATION_INTERVAL_MS = 45000;
 const ENHANCED_MODEL_DELAY_MS = 60000;
 const IS_MOBILE = () => window.innerWidth <= 600;
-
-// ─── NASA GIBS Satellite Imagery State ───────────────────────────────
-let gibsCanvasTexture = null;
-let gibsOffscreenCanvas = null;
-let gibsLastDate = null;
-let gibsFetching = false;
-let nightTexture = null;
 
 // ─── Locate Me State ─────────────────────────────────────────────────
 let locateAnimating = false;
@@ -1951,19 +1915,11 @@ const earthMat = new THREE.MeshPhongMaterial({
 
 textureLoader.load('textures/earth_night.jpg', (texture) => {
   texture.colorSpace = THREE.SRGBColorSpace;
-  nightTexture = texture;
-
-  // If satellite imagery is already loaded, use dual-texture day/night setup
-  if (gibsCanvasTexture && LAYERS.satellite.active) {
-    applyGIBSTexture();
-  } else {
-    // Original: night lights as both diffuse and emissive
-    earthMat.map = texture;
-    earthMat.emissiveMap = texture;
-    earthMat.emissive = new THREE.Color(0xffffff);
-    earthMat.emissiveIntensity = 0.9;
-    earthMat.color = new THREE.Color(0x222233);
-  }
+  earthMat.map = texture;
+  earthMat.emissiveMap = texture;
+  earthMat.emissive = new THREE.Color(0xffffff);
+  earthMat.emissiveIntensity = 0.9;
+  earthMat.color = new THREE.Color(0x222233);
   earthMat.needsUpdate = true;
 }, undefined, () => {
   console.warn('Failed to load earth texture, using fallback');
@@ -2022,7 +1978,6 @@ scene.add(sunLight);
 // ─── Data Layer Groups ───────────────────────────────────────────────
 const dataGroups = {};
 Object.keys(LAYERS).forEach(key => {
-  if (key === 'satellite') return; // satellite modifies globe material, not a data overlay
   const group = new THREE.Group();
   group.visible = LAYERS[key].active;
   earth.add(group);
@@ -2980,192 +2935,6 @@ function resetCosmicParticle(i) {
   cosmicVelocities[i] = { vr: -0.005 - Math.random() * 0.01 };
 }
 
-// ─── NASA GIBS Satellite Imagery ────────────────────────────────────
-// Combines Terra + Aqua MODIS to fill orbital swath gaps
-const GIBS_HOSTS = ['gibs-a', 'gibs-b', 'gibs-c'];
-const GIBS_LAYERS = [
-  'MODIS_Terra_CorrectedReflectance_TrueColor',
-  'MODIS_Aqua_CorrectedReflectance_TrueColor',
-];
-const GIBS_ZOOM = 3;
-const GIBS_ROWS = 5;
-const GIBS_COLS = 10;
-const GIBS_TILE_SIZE = 256;
-const GIBS_CANVAS_W = GIBS_COLS * GIBS_TILE_SIZE; // 2560
-const GIBS_CANVAS_H = GIBS_ROWS * GIBS_TILE_SIZE; // 1280
-
-function getGIBSDate() {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
-
-function gibsTileURL(layer, row, col, date) {
-  const host = GIBS_HOSTS[(row * GIBS_COLS + col) % GIBS_HOSTS.length];
-  return `https://${host}.earthdata.nasa.gov/wmts/epsg4326/best/${layer}/default/${date}/250m/${GIBS_ZOOM}/${row}/${col}.jpg`;
-}
-
-function loadImageAsync(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Tile load failed'));
-    img.src = url;
-  });
-}
-
-// Check if a tile is mostly black (orbital swath gap)
-const _sampleCanvas = document.createElement('canvas');
-_sampleCanvas.width = _sampleCanvas.height = 8;
-const _sampleCtx = _sampleCanvas.getContext('2d', { willReadFrequently: true });
-
-function isTileGap(img) {
-  _sampleCtx.drawImage(img, 0, 0, 8, 8);
-  const data = _sampleCtx.getImageData(0, 0, 8, 8).data;
-  let darkPixels = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i] + data[i + 1] + data[i + 2] < 30) darkPixels++;
-  }
-  return darkPixels > 48; // >75% dark = swath gap
-}
-
-async function fetchGIBSSatelliteImagery() {
-  if (gibsFetching || !LAYERS.satellite.active) return;
-
-  const date = getGIBSDate();
-  if (date === gibsLastDate && gibsCanvasTexture) return;
-
-  gibsFetching = true;
-  const loadingEl = document.getElementById('satellite-loading');
-  if (loadingEl) loadingEl.classList.add('visible');
-  setFeedStatus('Satellite', 'loading');
-
-  try {
-    if (!gibsOffscreenCanvas) {
-      gibsOffscreenCanvas = document.createElement('canvas');
-      gibsOffscreenCanvas.width = GIBS_CANVAS_W;
-      gibsOffscreenCanvas.height = GIBS_CANVAS_H;
-    }
-    const ctx = gibsOffscreenCanvas.getContext('2d');
-
-    // Fetch tiles from both Terra and Aqua satellites in parallel
-    const tilePromises = [];
-    for (const layer of GIBS_LAYERS) {
-      for (let row = 0; row < GIBS_ROWS; row++) {
-        for (let col = 0; col < GIBS_COLS; col++) {
-          const url = gibsTileURL(layer, row, col, date);
-          tilePromises.push(
-            loadImageAsync(url)
-              .then(img => ({ img, row, col, layer, ok: true }))
-              .catch(() => ({ img: null, row, col, layer, ok: false }))
-          );
-        }
-      }
-    }
-
-    const results = await Promise.all(tilePromises);
-
-    // Separate Terra and Aqua tiles by grid position
-    const grid = {};
-    for (const r of results) {
-      const key = `${r.row}_${r.col}`;
-      if (!grid[key]) grid[key] = {};
-      grid[key][r.layer] = r;
-    }
-
-    // Fill canvas with ocean blue (visible where both satellites have gaps)
-    ctx.fillStyle = '#0d2137';
-    ctx.fillRect(0, 0, GIBS_CANVAS_W, GIBS_CANVAS_H);
-
-    // For each grid position, pick the best tile (Terra first, Aqua fills gaps)
-    let drawn = 0;
-    for (let row = 0; row < GIBS_ROWS; row++) {
-      for (let col = 0; col < GIBS_COLS; col++) {
-        const key = `${row}_${col}`;
-        const tiles = grid[key] || {};
-        const terra = tiles[GIBS_LAYERS[0]];
-        const aqua = tiles[GIBS_LAYERS[1]];
-        const x = col * GIBS_TILE_SIZE;
-        const y = row * GIBS_TILE_SIZE;
-
-        // Try Terra first; if it's a gap, try Aqua
-        if (terra?.ok && terra.img && !isTileGap(terra.img)) {
-          ctx.drawImage(terra.img, x, y, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
-          drawn++;
-        } else if (aqua?.ok && aqua.img && !isTileGap(aqua.img)) {
-          ctx.drawImage(aqua.img, x, y, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
-          drawn++;
-        } else if (terra?.ok && terra.img) {
-          // Even a gap tile is better than solid fill
-          ctx.drawImage(terra.img, x, y, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
-          drawn++;
-        } else if (aqua?.ok && aqua.img) {
-          ctx.drawImage(aqua.img, x, y, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
-          drawn++;
-        }
-      }
-    }
-
-    if (drawn < 15) throw new Error(`Too few tiles rendered: ${drawn}/50`);
-
-    if (!gibsCanvasTexture) {
-      gibsCanvasTexture = new THREE.CanvasTexture(gibsOffscreenCanvas);
-      gibsCanvasTexture.colorSpace = THREE.SRGBColorSpace;
-      gibsCanvasTexture.minFilter = THREE.LinearFilter;
-      gibsCanvasTexture.magFilter = THREE.LinearFilter;
-      gibsCanvasTexture.generateMipmaps = false;
-    } else {
-      gibsCanvasTexture.needsUpdate = true;
-    }
-
-    gibsLastDate = date;
-
-    if (LAYERS.satellite.active) applyGIBSTexture();
-
-    setFeedStatus('Satellite', 'ok');
-    console.log(`GIBS: ${drawn}/50 positions filled (Terra+Aqua) for ${date}`);
-    addEvent('iss', `Satellite imagery updated — ${date}`, new Date());
-
-  } catch (e) {
-    console.error('GIBS satellite fetch error:', e);
-    setFeedStatus('Satellite', 'error');
-  } finally {
-    gibsFetching = false;
-    if (loadingEl) loadingEl.classList.remove('visible');
-  }
-}
-
-function applyGIBSTexture() {
-  if (!gibsCanvasTexture) return;
-  earthMat.map = gibsCanvasTexture;
-  earthMat.color = new THREE.Color(0xffffff);
-  if (nightTexture) {
-    earthMat.emissiveMap = nightTexture;
-    earthMat.emissive = new THREE.Color(0xffffff);
-    earthMat.emissiveIntensity = 0.7;
-  }
-  sunLight.intensity = 1.5;
-  earthMat.needsUpdate = true;
-}
-
-function removeGIBSTexture() {
-  if (nightTexture) {
-    earthMat.map = nightTexture;
-    earthMat.emissiveMap = nightTexture;
-    earthMat.emissive = new THREE.Color(0xffffff);
-    earthMat.emissiveIntensity = 0.9;
-    earthMat.color = new THREE.Color(0x222233);
-  } else {
-    earthMat.map = null;
-    earthMat.color = new THREE.Color(0x0a0a1e);
-    earthMat.emissive = new THREE.Color(0x0a0a2e);
-    earthMat.emissiveIntensity = 1;
-  }
-  sunLight.intensity = 0.3;
-  earthMat.needsUpdate = true;
-}
-
 // ─── Event Feed ──────────────────────────────────────────────────────
 function addEvent(type, text, time, lat, lon) {
   // Deduplicate — don't add if the same text already exists in feed
@@ -3310,16 +3079,7 @@ function buildLayerToggles() {
     div.onclick = () => {
       layer.active = !layer.active;
       div.classList.toggle('active');
-      if (key === 'satellite') {
-        if (layer.active) {
-          if (gibsCanvasTexture) applyGIBSTexture();
-          else fetchGIBSSatelliteImagery();
-        } else {
-          removeGIBSTexture();
-        }
-      } else {
-        if (dataGroups[key]) dataGroups[key].visible = layer.active;
-      }
+      if (dataGroups[key]) dataGroups[key].visible = layer.active;
     };
     container.appendChild(div);
   });
@@ -3494,7 +3254,6 @@ function init() {
   fetchAsteroids();
   fetchAirQuality();
   fetchOceanTemp();
-  fetchGIBSSatelliteImagery();
 
   // Set up refresh intervals
   setInterval(fetchEarthquakes, 60000);       // 1 min
@@ -3505,7 +3264,6 @@ function init() {
   setInterval(fetchAsteroids, 3600000);        // 1 hr
   setInterval(fetchAirQuality, 1800000);       // 30 min
   setInterval(fetchOceanTemp, 1800000);        // 30 min
-  setInterval(fetchGIBSSatelliteImagery, 1800000); // 30 min — catches daily rollover
 
   animate();
 
