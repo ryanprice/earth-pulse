@@ -1713,7 +1713,16 @@ function buildStateContext() {
   const wind = state.solar.wind;
   const xray = state.solar.xray;
   const kpLabel = kp >= 7 ? 'severe storm' : kp >= 5 ? 'storm' : kp >= 3 ? 'unsettled' : 'quiet';
-  parts.push(`Solar: Kp ${kp?.toFixed(1) || '--'} (${kpLabel}), X-ray ${xray ? xray.toExponential(1) + ' W/m²' : '--'}, Wind ${wind ? Math.round(wind) + ' km/s' : '--'}.`);
+  // Convert X-ray flux to solar flare class (A/B/C/M/X) so the small LLM doesn't hallucinate scientific notation
+  let xrayLabel = '--';
+  if (xray) {
+    if (xray >= 1e-4)      xrayLabel = 'X' + (xray / 1e-4).toFixed(1) + ' (extreme flare)';
+    else if (xray >= 1e-5) xrayLabel = 'M' + (xray / 1e-5).toFixed(1) + ' (strong flare)';
+    else if (xray >= 1e-6) xrayLabel = 'C' + (xray / 1e-6).toFixed(1) + ' (moderate flare)';
+    else if (xray >= 1e-7) xrayLabel = 'B' + (xray / 1e-7).toFixed(1) + ' (quiet)';
+    else                    xrayLabel = 'A-class (very quiet)';
+  }
+  parts.push(`Solar: Kp ${kp?.toFixed(1) || '--'} (${kpLabel}), X-ray flare class ${xrayLabel}, Solar wind ${wind ? Math.round(wind) + ' km/s' : '--'}.`);
   if (state.volcanoes.length > 0) {
     const volcNames = state.volcanoes.slice(0, 5).map(v => `${v.name} (${v.alert})`).join(', ');
     parts.push(`Volcanoes: ${state.volcanoes.length} elevated — ${volcNames}.`);
@@ -1737,6 +1746,7 @@ Your role is to provide brief, insightful commentary about what is happening on 
 - Be accessible to curious non-experts. Avoid jargon without explanation.
 - Connect phenomena when correlations exist (e.g., high Kp = aurora + suppressed cosmic rays).
 - Never be alarmist. Present data factually with appropriate context.
+- Only use exact numbers from the data below. Never invent or extrapolate numbers.
 - When asked questions, answer based strictly on the current data provided below.
 
 CURRENT EARTH STATUS:
