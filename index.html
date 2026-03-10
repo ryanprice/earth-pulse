@@ -1095,6 +1095,7 @@
       padding: 32px 24px 24px;
       max-height: 90vh;
       border-radius: 12px;
+      cursor: pointer;
     }
 
     #about-modal .about-icon { font-size: 72px; margin-bottom: 16px; }
@@ -1108,7 +1109,7 @@
     #about-modal .about-hint { font-size: 20px; margin-top: 28px; padding-top: 20px; }
     #about-modal .about-hint kbd { font-size: 20px; padding: 4px 10px; }
     #about-modal .about-btn { font-size: 24px; padding: 18px; letter-spacing: 2px; }
-    #about-modal .about-close { font-size: 36px; width: 48px; height: 48px; }
+    #about-modal .about-close { display: none; }
 
     /* QR share — visible on mobile */
     .qr-share {
@@ -3499,8 +3500,11 @@ function findDataAtLocation(lat, lon) {
   if (closeBtn) closeBtn.addEventListener('click', dismiss);
   if (enterBtn) enterBtn.addEventListener('click', dismiss);
   if (aboutBtn) aboutBtn.addEventListener('click', show);
+  // Tap anywhere on overlay OR modal to dismiss (except QR share)
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) dismiss();
+    const qrShare = document.getElementById('qr-share-btn');
+    if (qrShare && qrShare.contains(e.target)) return;
+    dismiss();
   });
   // ESC key
   document.addEventListener('keydown', (e) => {
