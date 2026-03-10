@@ -1,5 +1,7 @@
 # Earth Pulse
 
+<img width="2240" height="1199" alt="image" src="https://github.com/user-attachments/assets/3cf7d857-7c09-459a-9017-3b8505fd0e7d" />
+
 **Real-time 3D planet dashboard — 10 live data feeds on a Three.js globe with browser-local AI narrator and cross-feed correlation engine.**
 
 A single HTML file that renders an interactive 3D Earth pulling live data from USGS, NASA, NOAA, and other free public APIs. It visualizes earthquakes, the ISS, solar wind, aurora, volcanoes, asteroids, ocean temperatures, air quality, lightning, and cosmic rays — all on one dark-themed globe. **Planet Brain**, a browser-local AI powered by WebLLM and WebGPU, narrates live cross-feed patterns, answers questions about current planetary data, and provides contextual analysis when you click any data point — all running entirely in your browser with zero API keys.
