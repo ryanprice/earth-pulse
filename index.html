@@ -724,6 +724,14 @@
     display: block;
   }
 
+  #about-modal .about-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  #about-modal .about-header-left { flex: 1; }
+
   #about-modal h2 {
     font-size: 20px;
     font-weight: 700;
@@ -739,6 +747,57 @@
     text-transform: uppercase;
     margin-bottom: 20px;
     display: block;
+  }
+
+  /* QR share — hidden on desktop */
+  .qr-share { display: none; }
+
+  /* QR fullscreen overlay */
+  #qr-fullscreen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: rgba(0,0,0,0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    cursor: pointer;
+  }
+  #qr-fullscreen.visible { display: flex; }
+  #qr-fullscreen img {
+    width: 70vmin;
+    height: 70vmin;
+    max-width: 360px;
+    max-height: 360px;
+    border-radius: 12px;
+    border: 2px solid rgba(0,229,255,0.25);
+    box-shadow: 0 0 40px rgba(0,229,255,0.15);
+  }
+  #qr-fullscreen .qr-label {
+    font-family: var(--font);
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  #qr-fullscreen .qr-url {
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--text);
+    opacity: 0.5;
+  }
+  #qr-fullscreen .qr-dismiss {
+    font-family: var(--font);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-top: 8px;
+    opacity: 0.4;
   }
 
   #about-modal .about-section {
@@ -1050,6 +1109,29 @@
     #about-modal .about-hint kbd { font-size: 20px; padding: 4px 10px; }
     #about-modal .about-btn { font-size: 24px; padding: 18px; letter-spacing: 2px; }
     #about-modal .about-close { font-size: 36px; width: 48px; height: 48px; }
+
+    /* QR share — visible on mobile */
+    .qr-share {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .qr-share img {
+      width: 64px;
+      height: 64px;
+      border-radius: 6px;
+      border: 1px solid rgba(0,229,255,0.2);
+    }
+    .qr-share span {
+      font-size: 9px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
   }
 
   /* ── Mobile sidebar backdrop ── */
@@ -1598,13 +1680,29 @@
 <button id="sidebar-toggle" aria-label="Toggle data panel"><span class="toggle-icon"></span></button>
 <div id="sidebar-backdrop"></div>
 
+<!-- QR Fullscreen Overlay (tap to dismiss) -->
+<div id="qr-fullscreen">
+  <span class="qr-label">Scan to Share</span>
+  <img src="data:image/png;base64,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" alt="QR Code — sentedge.ai/earth-pulse/">
+  <span class="qr-url">sentedge.ai/earth-pulse/</span>
+  <span class="qr-dismiss">tap anywhere to dismiss</span>
+</div>
+
 <!-- About Modal (shown on first visit) -->
 <div id="about-overlay">
   <div id="about-modal">
     <button class="about-close" id="about-close">&times;</button>
-    <span class="about-icon">🌍</span>
-    <h2>EARTH PULSE</h2>
-    <span class="about-version">Real-Time Planet Dashboard &mdash; v1.0</span>
+    <div class="about-header">
+      <div class="about-header-left">
+        <span class="about-icon">🌍</span>
+        <h2>EARTH PULSE</h2>
+        <span class="about-version">Real-Time Planet Dashboard &mdash; v1.0</span>
+      </div>
+      <div class="qr-share" id="qr-share-btn">
+        <img src="data:image/png;base64,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" alt="QR">
+        <span>Tap to share</span>
+      </div>
+    </div>
 
     <div class="about-section">
       <h3>Why</h3>
@@ -3407,6 +3505,22 @@ function findDataAtLocation(lat, lon) {
   // ESC key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !overlay.classList.contains('hidden')) dismiss();
+  });
+})();
+
+// QR share — tap to fullscreen, tap to dismiss
+(function setupQRShare() {
+  const btn = document.getElementById('qr-share-btn');
+  const overlay = document.getElementById('qr-fullscreen');
+  if (!btn || !overlay) return;
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    overlay.classList.add('visible');
+  });
+
+  overlay.addEventListener('click', () => {
+    overlay.classList.remove('visible');
   });
 })();
 
