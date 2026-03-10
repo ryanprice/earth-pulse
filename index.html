@@ -2216,12 +2216,12 @@ canvas.addEventListener('mousemove', (e) => {
     tooltip.style.setProperty('--tooltip-color', tc ? tc.hex : 'var(--accent)');
   } else {
     canvas.style.cursor = 'grab';
-    tooltip.style.display = 'none';
+    if (!pinnedTooltip) tooltip.style.display = 'none';
   }
 });
 
 canvas.addEventListener('mouseleave', () => {
-  tooltip.style.display = 'none';
+  if (!pinnedTooltip) tooltip.style.display = 'none';
   canvas.style.cursor = 'grab';
 });
 
@@ -2233,6 +2233,7 @@ canvas.addEventListener('click', (e) => {
   const hits = raycaster.intersectObjects(earth.children, true)
     .filter(h => h.object.userData?.type);
 
+  pinnedTooltip = null; // Clear any pinned tooltip on direct globe click
   if (hits.length > 0) {
     const d = hits[0].object.userData;
     showInfoPanel(d);
@@ -3212,6 +3213,25 @@ function animate() {
     locateMarkerGlow.scale.setScalar(pulseScale);
   }
 
+  // ── Pinned tooltip — track 3D position on screen ──
+  if (pinnedTooltip) {
+    if (Date.now() > pinnedTooltip.expiry) {
+      pinnedTooltip = null;
+      tooltip.style.display = 'none';
+    } else {
+      const worldPos = latLonToVec3(pinnedTooltip.lat, pinnedTooltip.lon, EARTH_RADIUS + 0.02);
+      const screenPos = worldPos.clone().project(camera);
+      const rect = renderer.domElement.getBoundingClientRect();
+      const sx = (screenPos.x * 0.5 + 0.5) * rect.width + rect.left;
+      const sy = (-screenPos.y * 0.5 + 0.5) * rect.height + rect.top;
+      tooltip.style.left = (sx + 12) + 'px';
+      tooltip.style.top = (sy - 12) + 'px';
+      tooltip.style.display = 'block';
+      tooltip.textContent = pinnedTooltip.text;
+      tooltip.style.setProperty('--tooltip-color', pinnedTooltip.color);
+    }
+  }
+
   renderer.render(scene, camera);
 }
 
@@ -3290,6 +3310,9 @@ function init() {
   });
 })();
 
+// ─── Pinned tooltip state ────────────────────────────────────────────
+let pinnedTooltip = null; // { lat, lon, text, color, expiry }
+
 // ─── Zoomable location click delegation ─────────────────────────────
 // Clicking any .zoomable element zooms the globe + opens the info panel + tooltip
 document.addEventListener('click', (e) => {
@@ -3300,10 +3323,17 @@ document.addEventListener('click', (e) => {
   if (isNaN(lat) || isNaN(lon)) return;
   animateCameraToLatLon(lat, lon);
 
-  // Find matching data object and show info panel
+  // Find matching data object and show info panel + pin tooltip
   const dataObj = findDataAtLocation(lat, lon);
   if (dataObj) {
     showInfoPanel(dataObj);
+    const tc = TYPE_COLORS[dataObj.type];
+    pinnedTooltip = {
+      lat, lon,
+      text: getTooltipText(dataObj),
+      color: tc ? tc.hex : 'var(--accent)',
+      expiry: Date.now() + 5000,
+    };
   }
 
   // On mobile, close the sidebar so the user can see the globe
