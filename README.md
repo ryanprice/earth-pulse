@@ -1,10 +1,10 @@
 # Earth Pulse
 
-**Real-time 3D planet dashboard — 10 live data feeds on a Three.js globe with cross-feed correlation engine.**
+**Real-time 3D planet dashboard — 10 live data feeds on a Three.js globe with browser-local AI narrator and cross-feed correlation engine.**
 
-A single HTML file that renders an interactive 3D Earth pulling live data from USGS, NASA, NOAA, and other free public APIs. It visualizes earthquakes, the ISS, solar wind, aurora, volcanoes, asteroids, ocean temperatures, air quality, lightning, and cosmic rays — all on one dark-themed globe with an AI-style correlation sidebar that detects when independent signals align.
+A single HTML file that renders an interactive 3D Earth pulling live data from USGS, NASA, NOAA, and other free public APIs. It visualizes earthquakes, the ISS, solar wind, aurora, volcanoes, asteroids, ocean temperatures, air quality, lightning, and cosmic rays — all on one dark-themed globe. **Planet Brain**, a browser-local AI powered by WebLLM and WebGPU, narrates live cross-feed patterns, answers questions about current planetary data, and provides contextual analysis when you click any data point — all running entirely in your browser with zero API keys.
 
-![Earth Pulse Dashboard](https://img.shields.io/badge/feeds-10_live-00d4ff) ![No Build](https://img.shields.io/badge/build-none_required-44ff88) ![License](https://img.shields.io/badge/license-MIT-aa44ff)
+![Earth Pulse Dashboard](https://img.shields.io/badge/feeds-10_live-00d4ff) ![AI](https://img.shields.io/badge/AI-browser--local-ff6600) ![No Build](https://img.shields.io/badge/build-none_required-44ff88) ![License](https://img.shields.io/badge/license-MIT-aa44ff)
 
 ---
 
@@ -83,13 +83,39 @@ The dashboard doesn't just display data — it watches for patterns across indep
 | **Solar Flare** | X-ray flux > 1e-5 W/m² | M-class or above flare, possible radio blackouts |
 | **System Nominal** | No triggers active | All feeds normal, no cross-feed correlations detected |
 
+### Planet Brain — On-Device AI
+
+Planet Brain is a browser-local AI system that reads all 10 live feeds and provides intelligent narration, conversational chat, and contextual data analysis — entirely on-device via WebGPU.
+
+#### How It Works
+
+1. **Model loading:** On page load, a small language model ([SmolLM2-360M](https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct)) is downloaded and loaded into your GPU via [WebLLM](https://github.com/mlc-ai/web-llm). On desktop, a larger model ([Phi-3.5-mini](https://huggingface.co/microsoft/Phi-3.5-mini-instruct)) silently upgrades in the background for deeper analysis.
+2. **Ambient narration:** Every 45 seconds, Planet Brain reads the current state of all feeds and generates a 1-2 sentence insight about cross-feed patterns — rotating through topics like seismic activity, solar weather, atmospheric conditions, and more.
+3. **Conversational chat:** Click "Ask the Planet" to ask questions about what's happening right now. The AI has full context of all live data and provides informed, scientific responses.
+4. **Smart data tooltips:** Click any data point on the globe and Planet Brain adds a contextual AI analysis paragraph alongside the raw data.
+5. **Graceful fallback:** If your browser lacks WebGPU support, the rule-based correlation engine provides narration instead.
+
+#### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Zero API keys** | No OpenAI, no Anthropic, no cloud inference. The model runs in your browser's GPU. |
+| **Privacy-first** | No data leaves your device. All inference happens locally via WebGPU. |
+| **Progressive enhancement** | SmolLM2 loads in ~10-30s, Phi-3.5 upgrades silently on desktop. |
+| **Minimized state** | Planet Brain minimizes to a small 🧠 icon. It pulses when new insights arrive. |
+| **WebGPU required** | Chrome 113+, Edge 113+, or Safari 18+ with WebGPU enabled. |
+
+### Locate Me
+
+Click the crosshair button to share your browser location. The globe smoothly animates to zoom into your region and drops a pulsing marker at your coordinates.
+
 ---
 
 ## Architecture
 
 ```
 earth-pulse/
-├── index.html          # Everything: HTML + CSS + JS (~1,600 lines)
+├── index.html          # Everything: HTML + CSS + JS (~3,600 lines)
 ├── textures/
 │   └── earth_night.jpg # 2K night-side Earth texture (CC BY 4.0)
 └── README.md
@@ -98,18 +124,23 @@ earth-pulse/
 ### Tech Stack
 
 - **[Three.js](https://threejs.org/) v0.170.0** — 3D rendering via CDN (ES modules with import maps)
+- **[WebLLM](https://github.com/mlc-ai/web-llm)** — browser-local LLM inference via WebGPU
 - **OrbitControls** — mouse/touch interaction (rotate, zoom)
 - **Native Fetch API** — all data fetching, no libraries
+- **Geolocation API** — browser-based user location for globe navigation
 - **CSS Grid** — responsive layout
 - **Zero build tools** — no npm, no webpack, no framework
 
 ### How It Works
 
 1. **On load:** Fetches all 10 feeds in parallel, renders the 3D globe with night-side Earth texture
-2. **Continuous:** Each feed has its own refresh interval (5s for ISS up to 30min for ocean/air quality)
-3. **Per frame:** Animates earthquake pulses, ISS glow, solar wind particles, cosmic rays, lightning flashes, volcano rings, sun glow
-4. **On data update:** Re-renders affected globe layer, updates sidebar stats, runs correlation engine
-5. **Correlation engine:** Checks cross-feed rules on every solar/seismic data update, surfaces insights
+2. **AI initialization:** WebLLM downloads and loads SmolLM2-360M into the browser's GPU (~10-30s). On desktop, Phi-3.5-mini upgrades silently in the background after 60s.
+3. **Continuous:** Each feed has its own refresh interval (5s for ISS up to 30min for ocean/air quality)
+4. **Per frame:** Animates earthquake pulses, ISS glow, solar wind particles, cosmic rays, lightning flashes, volcano rings, sun glow
+5. **Every 45s:** Planet Brain reads current feed state, generates an AI narration about cross-feed patterns
+6. **On data update:** Re-renders affected globe layer, updates sidebar stats, runs correlation engine
+7. **On data click:** Shows info panel with raw data + streams AI contextual analysis
+8. **On chat:** User questions are answered with full live-data context via streaming inference
 
 ### CORS
 
@@ -134,6 +165,9 @@ All 8 external APIs support CORS and work directly from the browser — no proxy
 | **Click + drag** | Rotate globe |
 | **Scroll wheel** | Zoom in/out |
 | **Layer toggles** (top-left) | Show/hide individual data layers |
+| **🧠 icon** (bottom-left) | Open Planet Brain AI narrator and chat |
+| **⊕ crosshair** (bottom-right) | Locate me — zoom to your region |
+| **ℹ️ button** (top-right) | About modal with feature overview |
 | **Do nothing** | Globe auto-rotates slowly |
 
 ---
@@ -198,6 +232,9 @@ setInterval(fetchISS, 3000);           // Faster ISS tracking
 | World Air Quality Index | Free API | https://waqi.info/ |
 | Solar System Scope Textures | CC BY 4.0 | https://www.solarsystemscope.com/textures/ |
 | Three.js | MIT | https://threejs.org/ |
+| WebLLM (MLC AI) | Apache 2.0 | https://github.com/mlc-ai/web-llm |
+| SmolLM2 (HuggingFace) | Apache 2.0 | https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct |
+| Phi-3.5-mini (Microsoft) | MIT | https://huggingface.co/microsoft/Phi-3.5-mini-instruct |
 
 ---
 

@@ -1602,12 +1602,18 @@
     </div>
 
     <div class="about-section">
+      <h3>Planet Brain &mdash; On-Device AI</h3>
+      <p><strong style="color:var(--accent)">Planet Brain</strong> is a browser-local AI narrator powered by <strong style="color:var(--text)">WebLLM</strong>. A small language model (SmolLM2&ndash;360M) loads directly into your GPU via WebGPU &mdash; no server, no API keys, no data leaves your device. On desktop, a larger model (Phi&ndash;3.5) silently upgrades in the background for deeper analysis.</p>
+      <p>It reads all 10 live feeds in real time, narrates cross-feed patterns every 45 seconds, and lets you <strong style="color:var(--text)">ask questions</strong> about what's happening on the planet right now. Click a data point and Planet Brain adds contextual AI analysis alongside the raw data.</p>
+    </div>
+
+    <div class="about-section">
       <h3>How</h3>
-      <p>Built with <strong style="color:var(--text)">Three.js</strong> and zero dependencies &mdash; no framework, no build step, no API keys. All data is fetched directly from public APIs in your browser. The correlation engine watches for patterns: geomagnetic storms, seismic clusters, volcanic-seismic coupling, and solar flare impacts.</p>
+      <p>Built with <strong style="color:var(--text)">Three.js</strong> and zero server-side dependencies &mdash; no framework, no build step. All data is fetched directly from public APIs in your browser. The correlation engine watches for patterns: geomagnetic storms, seismic clusters, volcanic-seismic coupling, and solar flare impacts. Planet Brain runs entirely client-side via <strong style="color:var(--text)">WebGPU</strong> &mdash; if your browser doesn't support it, the rule-based correlation engine provides narration instead.</p>
     </div>
 
     <div class="about-hint">
-      <kbd>Click</kbd> any data point on the globe &middot; <kbd>Drag</kbd> to rotate &middot; <kbd>Scroll</kbd> to zoom
+      <kbd>Click</kbd> any data point &middot; <kbd>Drag</kbd> to rotate &middot; <kbd>Scroll</kbd> to zoom &middot; <kbd>🧠</kbd> Planet Brain AI
     </div>
 
     <button class="about-btn" id="about-enter">Explore the Planet</button>
