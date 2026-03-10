@@ -445,6 +445,17 @@
 
   .event-text { font-size: 10px; line-height: 1.4; }
 
+  /* Zoomable — clickable locations that zoom the globe */
+  .zoomable {
+    cursor: pointer;
+    border-bottom: 1px dashed rgba(0,212,255,0.3);
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .zoomable:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
   /* Correlation insights */
   .insight-card {
     padding: 10px;
@@ -2478,7 +2489,13 @@ async function fetchEarthquakes() {
     const maxQ = state.earthquakes.reduce((a, b) => a.mag > b.mag ? a : b, { mag: 0 });
     if (maxQ.mag) {
       document.getElementById('stat-max-quake').textContent = 'M' + maxQ.mag.toFixed(1);
-      document.getElementById('stat-max-quake-loc').textContent = maxQ.place || '--';
+      const locEl = document.getElementById('stat-max-quake-loc');
+      locEl.textContent = maxQ.place || '--';
+      if (maxQ.lat != null && maxQ.lon != null) {
+        locEl.classList.add('zoomable');
+        locEl.dataset.lat = maxQ.lat;
+        locEl.dataset.lon = maxQ.lon;
+      }
     }
     document.getElementById('dot-seismic').className = 'dot' + (maxQ.mag >= 6 ? ' alert' : maxQ.mag >= 4.5 ? ' warn' : '');
     document.getElementById('seismic-status').textContent = `Seismic: ${state.earthquakes.length} events`;
@@ -2486,7 +2503,7 @@ async function fetchEarthquakes() {
     // Add latest to event feed
     if (state.earthquakes.length > 0) {
       const latest = state.earthquakes[0];
-      addEvent('quake', `M${latest.mag.toFixed(1)} earthquake — ${latest.place}`, new Date(latest.time));
+      addEvent('quake', `M${latest.mag.toFixed(1)} earthquake — ${latest.place}`, new Date(latest.time), latest.lat, latest.lon);
     }
   } catch (e) {
     console.error('Earthquake fetch error:', e);
@@ -2530,8 +2547,11 @@ async function fetchISS() {
 
     // Stats
     document.getElementById('stat-iss-alt').textContent = Math.round(state.iss.alt) + ' km';
-    document.getElementById('stat-iss-region').textContent =
-      `${state.iss.lat.toFixed(1)}°, ${state.iss.lon.toFixed(1)}°`;
+    const issRegEl = document.getElementById('stat-iss-region');
+    issRegEl.textContent = `${state.iss.lat.toFixed(1)}°, ${state.iss.lon.toFixed(1)}°`;
+    issRegEl.classList.add('zoomable');
+    issRegEl.dataset.lat = state.iss.lat;
+    issRegEl.dataset.lon = state.iss.lon;
 
     setFeedStatus('ISS', 'ok');
   } catch (e) {
@@ -2681,7 +2701,7 @@ async function fetchVolcanoes() {
     if (state.volcanoes.length > 0) {
       const warn = state.volcanoes.filter(v => v.alert === 'WARNING' || v.alert === 'WATCH');
       if (warn.length > 0) {
-        addEvent('volcano', `${warn[0].name} at ${warn[0].alert} alert level`, new Date());
+        addEvent('volcano', `${warn[0].name} at ${warn[0].alert} alert level`, new Date(), warn[0].lat, warn[0].lon);
       }
     }
   } catch (e) {
@@ -2915,22 +2935,25 @@ function resetCosmicParticle(i) {
 }
 
 // ─── Event Feed ──────────────────────────────────────────────────────
-function addEvent(type, text, time) {
+function addEvent(type, text, time, lat, lon) {
   // Deduplicate — don't add if the same text already exists in feed
   if (state.events.some(e => e.text === text)) return;
-  state.events.unshift({ type, text, time });
+  state.events.unshift({ type, text, time, lat, lon });
   if (state.events.length > 30) state.events.pop();
   renderEvents();
 }
 
 function renderEvents() {
   const feed = document.getElementById('event-feed');
-  feed.innerHTML = state.events.slice(0, 15).map(e => `
-    <div class="event-item ${e.type}">
-      <span class="event-time">${formatTimeAgo(e.time)}</span>
-      <span class="event-text">${e.text}</span>
-    </div>
-  `).join('');
+  feed.innerHTML = state.events.slice(0, 15).map(e => {
+    const hasLoc = e.lat != null && e.lon != null;
+    const zoomAttr = hasLoc ? ` class="event-text zoomable" data-lat="${e.lat}" data-lon="${e.lon}"` : ' class="event-text"';
+    return `
+      <div class="event-item ${e.type}">
+        <span class="event-time">${formatTimeAgo(e.time)}</span>
+        <span${zoomAttr}>${e.text}</span>
+      </div>`;
+  }).join('');
 }
 
 // ─── Cross-Feed Correlation Engine ───────────────────────────────────
@@ -3266,6 +3289,25 @@ function init() {
     if (window.innerWidth > 900) closeSidebar();
   });
 })();
+
+// ─── Zoomable location click delegation ─────────────────────────────
+// Clicking any .zoomable element with data-lat/data-lon zooms the globe there
+document.addEventListener('click', (e) => {
+  const z = e.target.closest('.zoomable');
+  if (!z) return;
+  const lat = parseFloat(z.dataset.lat);
+  const lon = parseFloat(z.dataset.lon);
+  if (isNaN(lat) || isNaN(lon)) return;
+  animateCameraToLatLon(lat, lon);
+
+  // On mobile, close the sidebar so the user can see the globe
+  const sidebar = document.getElementById('sidebar');
+  if (window.innerWidth <= 900 && sidebar.classList.contains('open')) {
+    sidebar.classList.remove('open');
+    document.getElementById('sidebar-toggle').classList.remove('active');
+    document.getElementById('sidebar-backdrop').classList.remove('visible');
+  }
+});
 
 // About modal — show on first visit, reopen via header button
 (function setupAboutModal() {
