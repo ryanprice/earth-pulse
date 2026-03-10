@@ -1319,6 +1319,41 @@
 
   .pb-fallback a { color: var(--accent); text-decoration: none; }
 
+  /* ── Planet Brain — Minimized State ─────────────────────────────── */
+  .pb-mini-icon {
+    display: none;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  #planet-brain.pb-minimized {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    padding: 0;
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-height: none;
+  }
+  #planet-brain.pb-minimized .pb-header,
+  #planet-brain.pb-minimized .pb-collapsed-content,
+  #planet-brain.pb-minimized .pb-expanded-content,
+  #planet-brain.pb-minimized .pb-loading,
+  #planet-brain.pb-minimized .pb-fallback { display: none !important; }
+  #planet-brain.pb-minimized .pb-mini-icon { display: flex; }
+
+  /* Pulse when new insight arrives while minimized */
+  #planet-brain.pb-has-update {
+    animation: pb-update-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pb-update-pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(0,212,255,0.2), 0 0 20px rgba(0,0,0,0.4); }
+    50% { box-shadow: 0 0 20px rgba(0,212,255,0.6), 0 0 40px rgba(0,212,255,0.2); }
+  }
+
   /* AI context in info panel (smart tooltips) */
   .info-ai-context {
     margin-top: 10px;
@@ -1361,15 +1396,27 @@
     #planet-brain {
       width: calc(100vw - 24px);
       max-width: none;
-      max-height: 35vh;
-      bottom: 64px;
+      max-height: 70vh;
+      bottom: 12px;
       left: 12px;
       border-radius: 10px;
     }
+    #planet-brain.pb-minimized {
+      width: 44px;
+      height: 44px;
+      bottom: 12px;
+      left: 12px;
+    }
     #planet-brain.shifted-up { bottom: calc(64px + 260px + 12px); }
-    .pb-expanded-content { max-height: 50vh; }
+    .pb-expanded-content { max-height: 55vh; }
     .pb-narration-ticker { font-size: 13px; }
-    .pb-chat-messages { max-height: 30vh; }
+    .pb-chat-messages { max-height: 40vh; }
+    .pb-chat-msg { font-size: 13px; }
+    .pb-chat-input { font-size: 14px; }
+    .pb-chat-send { font-size: 14px; padding: 8px 12px; }
+    .pb-ask-btn { font-size: 12px; padding: 8px 12px; }
+    .pb-narration-item { font-size: 12px; }
+    .pb-narration-time { font-size: 10px; }
   }
 </style>
 </head>
@@ -1403,6 +1450,7 @@
 
     <!-- Planet Brain AI Card -->
     <div id="planet-brain" style="display:none">
+      <div class="pb-mini-icon" id="pb-mini-icon">🧠</div>
       <div class="pb-header" id="pb-header">
         <span class="pb-title">Planet Brain</span>
         <span class="pb-badge" id="pb-model-badge" style="display:none"></span>
@@ -3306,6 +3354,13 @@ async function loadEnhancedModel() {
 }
 
 // ─── Narration System ───────────────────────────────────────────────
+function notifyNarrationUpdate() {
+  const pb = document.getElementById('planet-brain');
+  if (pb && pb.classList.contains('pb-minimized')) {
+    pb.classList.add('pb-has-update');
+  }
+}
+
 async function generateNarration() {
   if (!aiState.ready || aiState.generating) return;
   aiState.generating = true;
@@ -3335,6 +3390,7 @@ async function generateNarration() {
       aiState.narrations.unshift({ text: fullText.trim(), time: new Date() });
       if (aiState.narrations.length > 20) aiState.narrations.pop();
       renderNarrationHistory();
+      notifyNarrationUpdate();
     }
   } catch (e) {
     console.error('Narration generation error:', e);
@@ -3352,6 +3408,7 @@ function startFallbackNarration() {
       const insight = state.insights[idx % state.insights.length];
       ticker.textContent = `[${insight.tag}] ${insight.text}`;
       idx++;
+      notifyNarrationUpdate();
     } else {
       ticker.textContent = 'Monitoring Earth systems...';
     }
@@ -3477,37 +3534,62 @@ async function requestInfoPanelAI(d) {
 
 // ─── Planet Brain UI ────────────────────────────────────────────────
 (function setupPlanetBrain() {
+  const pbCard = document.getElementById('planet-brain');
   const pbToggle = document.getElementById('pb-toggle');
   const pbCollapsed = document.getElementById('pb-collapsed');
   const pbExpanded = document.getElementById('pb-expanded');
   const pbAskBtn = document.getElementById('pb-ask-btn');
   const pbHeader = document.getElementById('pb-header');
+  const pbMiniIcon = document.getElementById('pb-mini-icon');
   const pbChatInput = document.getElementById('pb-chat-input');
   const pbChatSend = document.getElementById('pb-chat-send');
-  let expanded = false;
 
-  function expand() {
-    expanded = true;
+  // State: 'minimized' | 'collapsed' | 'expanded'
+  let pbState = 'minimized';
+
+  function minimize() {
+    pbState = 'minimized';
+    pbCard.classList.add('pb-minimized');
+    pbCard.classList.remove('pb-has-update');
+    pbCollapsed.style.display = 'none';
+    pbExpanded.style.display = 'none';
+    pbToggle.classList.remove('expanded');
+  }
+
+  function openCollapsed() {
+    pbState = 'collapsed';
+    pbCard.classList.remove('pb-minimized');
+    pbCard.classList.remove('pb-has-update');
+    pbCollapsed.style.display = 'flex';
+    pbExpanded.style.display = 'none';
+    pbToggle.classList.remove('expanded');
+  }
+
+  function openExpanded() {
+    pbState = 'expanded';
+    pbCard.classList.remove('pb-minimized');
+    pbCard.classList.remove('pb-has-update');
     pbCollapsed.style.display = 'none';
     pbExpanded.style.display = 'flex';
     pbToggle.classList.add('expanded');
     renderNarrationHistory();
   }
 
-  function collapse() {
-    expanded = false;
-    pbCollapsed.style.display = 'flex';
-    pbExpanded.style.display = 'none';
-    pbToggle.classList.remove('expanded');
-  }
-
-  pbHeader.addEventListener('click', () => {
-    if (expanded) collapse(); else expand();
+  // Mini icon click → open collapsed
+  pbMiniIcon.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openCollapsed();
   });
 
+  // Header click → always minimize (from collapsed or expanded)
+  pbHeader.addEventListener('click', () => {
+    minimize();
+  });
+
+  // Ask button → open expanded + focus chat
   pbAskBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    expand();
+    openExpanded();
     setTimeout(() => pbChatInput.focus(), 100);
   });
 
@@ -3519,6 +3601,9 @@ async function requestInfoPanelAI(d) {
       sendChatMessage();
     }
   });
+
+  // Start minimized
+  minimize();
 })();
 
 init();
