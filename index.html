@@ -2981,8 +2981,12 @@ function resetCosmicParticle(i) {
 }
 
 // ─── NASA GIBS Satellite Imagery ────────────────────────────────────
+// Combines Terra + Aqua MODIS to fill orbital swath gaps
 const GIBS_HOSTS = ['gibs-a', 'gibs-b', 'gibs-c'];
-const GIBS_LAYER = 'MODIS_Terra_CorrectedReflectance_TrueColor';
+const GIBS_LAYERS = [
+  'MODIS_Terra_CorrectedReflectance_TrueColor',
+  'MODIS_Aqua_CorrectedReflectance_TrueColor',
+];
 const GIBS_ZOOM = 3;
 const GIBS_ROWS = 5;
 const GIBS_COLS = 10;
@@ -2996,9 +3000,9 @@ function getGIBSDate() {
   return d.toISOString().slice(0, 10);
 }
 
-function gibsTileURL(row, col, date) {
+function gibsTileURL(layer, row, col, date) {
   const host = GIBS_HOSTS[(row * GIBS_COLS + col) % GIBS_HOSTS.length];
-  return `https://${host}.earthdata.nasa.gov/wmts/epsg4326/best/${GIBS_LAYER}/default/${date}/250m/${GIBS_ZOOM}/${row}/${col}.jpg`;
+  return `https://${host}.earthdata.nasa.gov/wmts/epsg4326/best/${layer}/default/${date}/250m/${GIBS_ZOOM}/${row}/${col}.jpg`;
 }
 
 function loadImageAsync(url) {
@@ -3009,6 +3013,21 @@ function loadImageAsync(url) {
     img.onerror = () => reject(new Error('Tile load failed'));
     img.src = url;
   });
+}
+
+// Check if a tile is mostly black (orbital swath gap)
+const _sampleCanvas = document.createElement('canvas');
+_sampleCanvas.width = _sampleCanvas.height = 8;
+const _sampleCtx = _sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+function isTileGap(img) {
+  _sampleCtx.drawImage(img, 0, 0, 8, 8);
+  const data = _sampleCtx.getImageData(0, 0, 8, 8).data;
+  let darkPixels = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] + data[i + 1] + data[i + 2] < 30) darkPixels++;
+  }
+  return darkPixels > 48; // >75% dark = swath gap
 }
 
 async function fetchGIBSSatelliteImagery() {
@@ -3030,31 +3049,65 @@ async function fetchGIBSSatelliteImagery() {
     }
     const ctx = gibsOffscreenCanvas.getContext('2d');
 
+    // Fetch tiles from both Terra and Aqua satellites in parallel
     const tilePromises = [];
-    for (let row = 0; row < GIBS_ROWS; row++) {
-      for (let col = 0; col < GIBS_COLS; col++) {
-        const url = gibsTileURL(row, col, date);
-        tilePromises.push(
-          loadImageAsync(url)
-            .then(img => ({ img, row, col, ok: true }))
-            .catch(() => ({ img: null, row, col, ok: false }))
-        );
+    for (const layer of GIBS_LAYERS) {
+      for (let row = 0; row < GIBS_ROWS; row++) {
+        for (let col = 0; col < GIBS_COLS; col++) {
+          const url = gibsTileURL(layer, row, col, date);
+          tilePromises.push(
+            loadImageAsync(url)
+              .then(img => ({ img, row, col, layer, ok: true }))
+              .catch(() => ({ img: null, row, col, layer, ok: false }))
+          );
+        }
       }
     }
 
     const results = await Promise.all(tilePromises);
-    const failures = results.filter(r => !r.ok).length;
 
-    if (failures > 25) throw new Error(`Too many tile failures: ${failures}/50`);
+    // Separate Terra and Aqua tiles by grid position
+    const grid = {};
+    for (const r of results) {
+      const key = `${r.row}_${r.col}`;
+      if (!grid[key]) grid[key] = {};
+      grid[key][r.layer] = r;
+    }
 
-    ctx.fillStyle = '#0a0a1e';
+    // Fill canvas with ocean blue (visible where both satellites have gaps)
+    ctx.fillStyle = '#0d2137';
     ctx.fillRect(0, 0, GIBS_CANVAS_W, GIBS_CANVAS_H);
 
-    results.forEach(({ img, row, col, ok }) => {
-      if (ok && img) {
-        ctx.drawImage(img, col * GIBS_TILE_SIZE, row * GIBS_TILE_SIZE, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
+    // For each grid position, pick the best tile (Terra first, Aqua fills gaps)
+    let drawn = 0;
+    for (let row = 0; row < GIBS_ROWS; row++) {
+      for (let col = 0; col < GIBS_COLS; col++) {
+        const key = `${row}_${col}`;
+        const tiles = grid[key] || {};
+        const terra = tiles[GIBS_LAYERS[0]];
+        const aqua = tiles[GIBS_LAYERS[1]];
+        const x = col * GIBS_TILE_SIZE;
+        const y = row * GIBS_TILE_SIZE;
+
+        // Try Terra first; if it's a gap, try Aqua
+        if (terra?.ok && terra.img && !isTileGap(terra.img)) {
+          ctx.drawImage(terra.img, x, y, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
+          drawn++;
+        } else if (aqua?.ok && aqua.img && !isTileGap(aqua.img)) {
+          ctx.drawImage(aqua.img, x, y, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
+          drawn++;
+        } else if (terra?.ok && terra.img) {
+          // Even a gap tile is better than solid fill
+          ctx.drawImage(terra.img, x, y, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
+          drawn++;
+        } else if (aqua?.ok && aqua.img) {
+          ctx.drawImage(aqua.img, x, y, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
+          drawn++;
+        }
       }
-    });
+    }
+
+    if (drawn < 15) throw new Error(`Too few tiles rendered: ${drawn}/50`);
 
     if (!gibsCanvasTexture) {
       gibsCanvasTexture = new THREE.CanvasTexture(gibsOffscreenCanvas);
@@ -3071,7 +3124,7 @@ async function fetchGIBSSatelliteImagery() {
     if (LAYERS.satellite.active) applyGIBSTexture();
 
     setFeedStatus('Satellite', 'ok');
-    if (failures > 0) console.warn(`GIBS: ${failures} tiles failed for ${date}`);
+    console.log(`GIBS: ${drawn}/50 positions filled (Terra+Aqua) for ${date}`);
     addEvent('iss', `Satellite imagery updated — ${date}`, new Date());
 
   } catch (e) {
