@@ -3291,7 +3291,7 @@ function init() {
 })();
 
 // ─── Zoomable location click delegation ─────────────────────────────
-// Clicking any .zoomable element with data-lat/data-lon zooms the globe there
+// Clicking any .zoomable element zooms the globe + opens the info panel + tooltip
 document.addEventListener('click', (e) => {
   const z = e.target.closest('.zoomable');
   if (!z) return;
@@ -3299,6 +3299,12 @@ document.addEventListener('click', (e) => {
   const lon = parseFloat(z.dataset.lon);
   if (isNaN(lat) || isNaN(lon)) return;
   animateCameraToLatLon(lat, lon);
+
+  // Find matching data object and show info panel
+  const dataObj = findDataAtLocation(lat, lon);
+  if (dataObj) {
+    showInfoPanel(dataObj);
+  }
 
   // On mobile, close the sidebar so the user can see the globe
   const sidebar = document.getElementById('sidebar');
@@ -3308,6 +3314,30 @@ document.addEventListener('click', (e) => {
     document.getElementById('sidebar-backdrop').classList.remove('visible');
   }
 });
+
+// Find the best matching data object at a given lat/lon
+function findDataAtLocation(lat, lon) {
+  // Check earthquakes first (most common)
+  const quake = state.earthquakes.find(q => q.lat === lat && q.lon === lon);
+  if (quake) return { type: 'earthquake', ...quake };
+
+  // Check volcanoes
+  const volcano = state.volcanoes.find(v => Math.abs(v.lat - lat) < 0.1 && Math.abs(v.lon - lon) < 0.1);
+  if (volcano) return { type: 'volcano', ...volcano };
+
+  // Check ISS
+  if (state.iss && Math.abs(state.iss.lat - lat) < 1 && Math.abs(state.iss.lon - lon) < 1) {
+    return { type: 'iss', ...state.iss };
+  }
+
+  // Check air quality cities
+  if (state.airQuality) {
+    const aq = state.airQuality.find(a => Math.abs(a.lat - lat) < 0.5 && Math.abs(a.lon - lon) < 0.5);
+    if (aq) return { type: 'airquality', ...aq };
+  }
+
+  return null;
+}
 
 // About modal — show on first visit, reopen via header button
 (function setupAboutModal() {
