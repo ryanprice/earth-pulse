@@ -598,6 +598,49 @@
   .info-badge.cyan { background: rgba(0,212,255,0.2); color: var(--accent); }
   .info-badge.purple { background: rgba(170,68,255,0.2); color: var(--purple); }
 
+  /* ── Locate Me Button ──────────────────────────────────────────── */
+  #locate-btn {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: rgba(10, 10, 18, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    padding: 0;
+    line-height: 1;
+  }
+  #locate-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 12px rgba(0,212,255,0.2);
+  }
+  #locate-btn.locating {
+    color: var(--accent);
+    border-color: var(--accent);
+    animation: locate-pulse 1s infinite;
+  }
+  #locate-btn.located {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  @keyframes locate-pulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(0,212,255,0.2); }
+    50% { box-shadow: 0 0 16px rgba(0,212,255,0.5); }
+  }
+
   /* About Modal */
   #about-overlay {
     position: fixed;
@@ -883,6 +926,7 @@
       bottom: 72px;
       left: 12px;
     }
+    #locate-btn { bottom: 72px; right: 16px; }
   }
 
   /* ── Responsive: Mobile (≤600px) ── */
@@ -957,6 +1001,9 @@
       bottom: 64px;
       left: 12px;
     }
+
+    #locate-btn { width: 32px; height: 32px; bottom: auto; top: 12px; right: 12px; }
+    #locate-btn svg { width: 14px; height: 14px; }
 
     .info-panel-body { font-size: 10px; padding: 10px 12px; }
     .info-panel-body .info-title { font-size: 13px; }
@@ -1341,6 +1388,11 @@
   <div id="globe-container">
     <canvas id="globe-canvas"></canvas>
     <div id="layer-toggles"></div>
+    <button id="locate-btn" title="Find my location" aria-label="Locate me on the globe">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+      </svg>
+    </button>
     <div id="info-panel">
       <div class="info-panel-header">
         <span class="info-panel-type" id="info-type"></span>
@@ -1582,6 +1634,15 @@ const NARRATION_TOPICS = ['seismic', 'solar', 'atmospheric', 'iss', 'volcanic', 
 const NARRATION_INTERVAL_MS = 45000;
 const ENHANCED_MODEL_DELAY_MS = 60000;
 const IS_MOBILE = () => window.innerWidth <= 600;
+
+// ─── Locate Me State ─────────────────────────────────────────────────
+let locateAnimating = false;
+let locateCameraTarget = null;
+let locateCameraStart = null;
+let locateProgress = 0;
+const LOCATE_ANIM_DURATION = 1.8;
+let locateMarker = null;
+let locateMarkerGlow = null;
 
 function buildStateContext() {
   const parts = [];
@@ -2102,6 +2163,82 @@ function closeInfoPanel() {
   const pb = document.getElementById('planet-brain');
   if (pb) pb.classList.remove('shifted-up');
 }
+
+// ─── Locate Me ───────────────────────────────────────────────────────
+const locateBtn = document.getElementById('locate-btn');
+
+function locateMe() {
+  if (!navigator.geolocation) {
+    locateBtn.style.color = 'var(--red)';
+    setTimeout(() => { locateBtn.style.color = ''; }, 1500);
+    return;
+  }
+
+  locateBtn.classList.add('locating');
+  locateBtn.classList.remove('located');
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      locateBtn.classList.remove('locating');
+      locateBtn.classList.add('located');
+      placeUserMarker(lat, lon);
+      animateCameraToLatLon(lat, lon);
+    },
+    (err) => {
+      console.warn('Geolocation error:', err.message);
+      locateBtn.classList.remove('locating');
+      locateBtn.style.color = 'var(--red)';
+      setTimeout(() => { locateBtn.style.color = ''; }, 1500);
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+  );
+}
+
+function placeUserMarker(lat, lon) {
+  if (locateMarker) { earth.remove(locateMarker); locateMarker = null; }
+
+  const markerGroup = new THREE.Group();
+  const pos = latLonToVec3(lat, lon, EARTH_RADIUS + 0.005);
+  markerGroup.position.copy(pos);
+
+  // Bright cyan pin
+  const pinGeo = new THREE.SphereGeometry(0.008, 12, 12);
+  const pinMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff });
+  markerGroup.add(new THREE.Mesh(pinGeo, pinMat));
+
+  // Pulsing glow ring
+  const glowGeo = new THREE.RingGeometry(0.012, 0.022, 24);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0x00d4ff, transparent: true, opacity: 0.6,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  locateMarkerGlow = new THREE.Mesh(glowGeo, glowMat);
+  locateMarkerGlow.lookAt(new THREE.Vector3(0, 0, 0));
+  markerGroup.add(locateMarkerGlow);
+
+  earth.add(markerGroup);
+  locateMarker = markerGroup;
+}
+
+function animateCameraToLatLon(lat, lon) {
+  const ZOOM_DISTANCE = 2.0;
+  const surfacePoint = latLonToVec3(lat, lon, EARTH_RADIUS);
+  const direction = surfacePoint.clone().normalize();
+  locateCameraTarget = direction.multiplyScalar(ZOOM_DISTANCE);
+  locateCameraStart = camera.position.clone();
+  controls.autoRotate = false;
+  controls.enabled = false;
+  locateProgress = 0;
+  locateAnimating = true;
+}
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+locateBtn.addEventListener('click', locateMe);
 
 // Data-type color map — keeps everything visually consistent
 const TYPE_COLORS = {
@@ -2950,6 +3087,27 @@ function animate() {
   // Sun glow pulse
   sunGlow.material.opacity = 0.4 + Math.sin(elapsed * 1.5) * 0.2;
   sunGlow.scale.setScalar(1 + Math.sin(elapsed * 0.8) * 0.1);
+
+  // ── Locate Me camera animation ──
+  if (locateAnimating) {
+    locateProgress += delta / LOCATE_ANIM_DURATION;
+    if (locateProgress >= 1) {
+      locateProgress = 1;
+      locateAnimating = false;
+      controls.enabled = true;
+      setTimeout(() => { if (!locateAnimating) controls.autoRotate = true; }, 5000);
+    }
+    const t = easeInOutCubic(Math.min(locateProgress, 1));
+    camera.position.lerpVectors(locateCameraStart, locateCameraTarget, t);
+    camera.lookAt(0, 0, 0);
+  }
+
+  // ── Locate marker glow pulse ──
+  if (locateMarkerGlow) {
+    locateMarkerGlow.material.opacity = 0.3 + Math.sin(elapsed * 3) * 0.3;
+    const pulseScale = 1 + Math.sin(elapsed * 2) * 0.3;
+    locateMarkerGlow.scale.setScalar(pulseScale);
+  }
 
   renderer.render(scene, camera);
 }
