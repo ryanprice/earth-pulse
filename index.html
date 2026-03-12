@@ -49,8 +49,8 @@
 <meta name="format-detection" content="telephone=no">
 
 <!-- PWA -->
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="/earth-pulse/manifest.json">
+<link rel="apple-touch-icon" href="/earth-pulse/apple-touch-icon.png">
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">
@@ -906,6 +906,66 @@
     box-shadow: 0 0 20px rgba(0,212,255,0.1);
   }
 
+  /* Install app button — hidden by default, shown via JS */
+  #pwa-install-wrap { display: none; }
+  #pwa-install-wrap.visible { display: block; margin-top: 12px; }
+
+  #pwa-install-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, rgba(76,175,80,0.12), rgba(76,175,80,0.06));
+    border: 1px solid rgba(76,175,80,0.25);
+    border-radius: 10px;
+    color: #66bb6a;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  #pwa-install-btn:hover {
+    background: linear-gradient(135deg, rgba(76,175,80,0.2), rgba(76,175,80,0.1));
+    border-color: rgba(76,175,80,0.4);
+    box-shadow: 0 0 20px rgba(76,175,80,0.1);
+  }
+  #pwa-install-btn .install-icon { font-size: 16px; }
+
+  /* Expandable install instructions */
+  .install-steps {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.35s ease, opacity 0.3s ease, margin 0.3s ease;
+    margin-top: 0;
+  }
+  .install-steps.open {
+    max-height: 300px;
+    opacity: 1;
+    margin-top: 10px;
+  }
+  .install-steps ol {
+    margin: 0;
+    padding: 0 0 0 20px;
+    color: var(--text);
+    font-size: 11px;
+    line-height: 1.8;
+    opacity: 0.75;
+  }
+  .install-steps .steps-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: block;
+  }
+
   /* ── Mobile sidebar toggle button ── */
   #sidebar-toggle {
     display: none;
@@ -1114,6 +1174,9 @@
     #about-modal .about-hint kbd { font-size: 20px; padding: 4px 10px; }
     #about-modal .about-btn { font-size: 24px; padding: 18px; letter-spacing: 2px; }
     #about-modal .about-close { display: none; }
+    #pwa-install-btn { font-size: 20px; padding: 16px; }
+    .install-steps ol { font-size: 18px; }
+    .install-steps .steps-label { font-size: 16px; }
 
     /* QR share — visible on mobile */
     .qr-share {
@@ -1744,6 +1807,17 @@
 
     <div class="about-hint">
       <kbd>Click</kbd> any data point &middot; <kbd>Drag</kbd> to rotate &middot; <kbd>Scroll</kbd> to zoom &middot; <kbd>🧠</kbd> Planet Brain AI
+    </div>
+
+    <div id="pwa-install-wrap">
+      <button id="pwa-install-btn">
+        <span class="install-icon">+</span>
+        <span id="pwa-install-label">Add to Home Screen</span>
+      </button>
+      <div class="install-steps" id="pwa-install-steps">
+        <span class="steps-label">How to install</span>
+        <ol id="pwa-steps-list"></ol>
+      </div>
     </div>
 
     <button class="about-btn" id="about-enter">Explore the Planet</button>
@@ -3868,9 +3942,83 @@ init();
 <!-- PWA Service Worker -->
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js', { scope: '/' })
+  navigator.serviceWorker.register('/earth-pulse/sw.js', { scope: '/earth-pulse/' })
     .catch(() => {});
 }
+
+// ─── PWA Install Button ─────────────────────────────────────────────
+(function setupPWAInstall() {
+  const wrap = document.getElementById('pwa-install-wrap');
+  const btn = document.getElementById('pwa-install-btn');
+  const label = document.getElementById('pwa-install-label');
+  const stepsEl = document.getElementById('pwa-install-steps');
+  const stepsList = document.getElementById('pwa-steps-list');
+  if (!wrap || !btn) return;
+
+  // Don't show if already installed (standalone mode)
+  if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) return;
+
+  let deferredPrompt = null;
+
+  // Detect platform
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/.test(ua);
+
+  // Capture the beforeinstallprompt event (Chrome/Edge/Samsung)
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    wrap.classList.add('visible');
+  });
+
+  // iOS — always show with manual instructions
+  if (isIOS) {
+    wrap.classList.add('visible');
+    label.textContent = 'Add to Home Screen';
+    stepsList.innerHTML =
+      '<li>Tap the <strong>Share</strong> button (box with arrow) at the bottom of Safari</li>' +
+      '<li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>' +
+      '<li>Tap <strong>Add</strong> — Earth Pulse will appear as an app on your home screen</li>';
+  }
+
+  // Android without beforeinstallprompt (Firefox, etc.)
+  if (isAndroid && !deferredPrompt) {
+    setTimeout(() => {
+      if (!deferredPrompt) {
+        wrap.classList.add('visible');
+        stepsList.innerHTML =
+          '<li>Tap the <strong>menu</strong> (three dots) in the top right</li>' +
+          '<li>Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong></li>' +
+          '<li>Tap <strong>Add</strong> — Earth Pulse launches as a full-screen app</li>';
+      }
+    }, 1500);
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+
+    // If we have the native prompt (Chrome/Edge), use it
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((result) => {
+        if (result.outcome === 'accepted') {
+          wrap.classList.remove('visible');
+        }
+        deferredPrompt = null;
+      });
+      return;
+    }
+
+    // Otherwise toggle the manual instructions
+    stepsEl.classList.toggle('open');
+  });
+
+  // Hide after successful install
+  window.addEventListener('appinstalled', () => {
+    wrap.classList.remove('visible');
+  });
+})();
 </script>
 </body>
 </html>
