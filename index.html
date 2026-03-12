@@ -3932,17 +3932,17 @@ async function requestInfoPanelAI(d) {
     }
   });
 
-  // Tap card body when expanded → minimize (but not chat input/send)
-  pbCard.addEventListener('click', (e) => {
-    if (pbState !== 'expanded') return;
+  // Tap expanded content area → minimize (but not chat input/send)
+  pbExpanded.addEventListener('click', (e) => {
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON') return;
     if (e.target.closest('#pb-chat-send') || e.target.closest('#pb-chat-input')) return;
+    e.stopPropagation();
     minimize();
   });
 
   // Tap outside the card when expanded → minimize
-  document.addEventListener('click', (e) => {
+  document.addEventListener('pointerup', (e) => {
     if (pbState === 'expanded' && !pbCard.contains(e.target)) {
       minimize();
     }
