@@ -1517,54 +1517,18 @@
     50% { box-shadow: 0 0 20px rgba(0,212,255,0.6), 0 0 40px rgba(0,212,255,0.2); }
   }
 
-  /* ── Planet Brain — AI Thinking State ──────────────────────────── */
-  #pb-thinking-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 9998;
-    background: rgba(0,0,0,0.35);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
-    transition: opacity 0.3s ease;
-    opacity: 0;
-  }
-  #pb-thinking-overlay.visible {
-    display: block;
-    opacity: 1;
-  }
-
-  #planet-brain.pb-thinking {
-    z-index: 9999;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    padding: 0;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  /* ── Planet Brain — AI Thinking State (non-blocking) ─────────── */
+  #planet-brain.pb-thinking.pb-minimized {
     animation: pb-think-pulse 1.2s ease-in-out infinite;
-    pointer-events: none;
-  }
-  #planet-brain.pb-thinking .pb-header,
-  #planet-brain.pb-thinking .pb-collapsed-content,
-  #planet-brain.pb-thinking .pb-expanded-content,
-  #planet-brain.pb-thinking .pb-loading,
-  #planet-brain.pb-thinking .pb-fallback { display: none !important; }
-  #planet-brain.pb-thinking .pb-mini-icon {
-    display: flex;
-    font-size: 32px;
+    border: 2px solid rgba(0,212,255,0.4);
   }
 
   @keyframes pb-think-pulse {
     0%, 100% {
-      transform: scale(1);
-      box-shadow: 0 0 12px rgba(0,212,255,0.3), 0 0 30px rgba(0,212,255,0.1);
+      box-shadow: 0 0 8px rgba(0,212,255,0.3), 0 0 20px rgba(0,212,255,0.1);
     }
     50% {
-      transform: scale(1.12);
-      box-shadow: 0 0 30px rgba(0,212,255,0.7), 0 0 60px rgba(0,212,255,0.25), 0 0 90px rgba(0,212,255,0.1);
+      box-shadow: 0 0 20px rgba(0,212,255,0.7), 0 0 40px rgba(0,212,255,0.2);
     }
   }
 
@@ -1677,7 +1641,6 @@
     </div>
 
     <!-- Planet Brain AI Card -->
-    <div id="pb-thinking-overlay"></div>
     <div id="planet-brain" style="display:none">
       <div class="pb-mini-icon" id="pb-mini-icon">🧠</div>
       <div class="pb-header" id="pb-header">
@@ -3743,41 +3706,15 @@ function notifyNarrationUpdate() {
   }
 }
 
-// ─── AI Thinking State ───────────────────────────────────────────────
-let _pbStateBeforeThinking = null;
-
+// ─── AI Thinking State (non-blocking) ────────────────────────────────
 function startThinking() {
   const pb = document.getElementById('planet-brain');
-  const overlay = document.getElementById('pb-thinking-overlay');
-  if (!pb) return;
-
-  // Remember current UI state so we can restore
-  _pbStateBeforeThinking = {
-    minimized: pb.classList.contains('pb-minimized'),
-    classes: pb.className,
-  };
-
-  // Collapse to brain icon in thinking mode
-  pb.classList.remove('pb-minimized');
-  pb.classList.add('pb-thinking');
-  overlay.classList.add('visible');
+  if (pb) pb.classList.add('pb-thinking');
 }
 
 function stopThinking() {
   const pb = document.getElementById('planet-brain');
-  const overlay = document.getElementById('pb-thinking-overlay');
-  if (!pb) return;
-
-  pb.classList.remove('pb-thinking');
-  overlay.classList.remove('visible');
-
-  // Restore previous state
-  if (_pbStateBeforeThinking) {
-    if (_pbStateBeforeThinking.minimized) {
-      pb.classList.add('pb-minimized');
-    }
-    _pbStateBeforeThinking = null;
-  }
+  if (pb) pb.classList.remove('pb-thinking');
 }
 
 async function generateNarration() {
