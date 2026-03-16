@@ -523,6 +523,33 @@
     backdrop-filter: blur(8px);
   }
 
+  #my-location-label {
+    position: fixed;
+    background: rgba(10,10,18,0.92);
+    border: 1px solid rgba(0,212,255,0.4);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 99;
+    display: none;
+    white-space: nowrap;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 12px rgba(0,212,255,0.15);
+    transform: translate(-50%, -100%);
+    line-height: 1.4;
+  }
+  #my-location-label .loc-title {
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  #my-location-label .loc-coords {
+    color: var(--text-dim);
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
   /* Info Panel */
   #info-panel {
     position: absolute;
@@ -1758,6 +1785,10 @@
 </div>
 
 <div id="tooltip"></div>
+<div id="my-location-label">
+  <div class="loc-title">🏠 My Location</div>
+  <div class="loc-coords" id="my-location-coords"></div>
+</div>
 
 <!-- Mobile sidebar toggle + backdrop -->
 <button id="sidebar-toggle" aria-label="Toggle data panel"><span class="toggle-icon"></span></button>
@@ -1916,6 +1947,7 @@ let locateProgress = 0;
 const LOCATE_ANIM_DURATION = 1.8;
 let locateMarker = null;
 let locateMarkerGlow = null;
+let userLocation = null; // { lat, lon }
 
 function buildStateContext() {
   const parts = [];
@@ -2482,6 +2514,9 @@ function locateMe() {
 
 function placeUserMarker(lat, lon) {
   if (locateMarker) { earth.remove(locateMarker); locateMarker = null; }
+  userLocation = { lat, lon };
+  const coordsEl = document.getElementById('my-location-coords');
+  if (coordsEl) coordsEl.textContent = `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
 
   const markerGroup = new THREE.Group();
   const pos = latLonToVec3(lat, lon, EARTH_RADIUS + 0.005);
@@ -3403,6 +3438,25 @@ function animate() {
     locateMarkerGlow.material.opacity = 0.3 + Math.sin(elapsed * 3) * 0.3;
     const pulseScale = 1 + Math.sin(elapsed * 2) * 0.3;
     locateMarkerGlow.scale.setScalar(pulseScale);
+  }
+
+  // ── My Location label — track user marker position ──
+  const myLocLabel = document.getElementById('my-location-label');
+  if (userLocation && locateMarker && myLocLabel) {
+    const locWorldPos = latLonToVec3(userLocation.lat, userLocation.lon, EARTH_RADIUS + 0.03);
+    const locScreenPos = locWorldPos.clone().project(camera);
+    if (locScreenPos.z < 1) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const lx = (locScreenPos.x * 0.5 + 0.5) * rect.width + rect.left;
+      const ly = (-locScreenPos.y * 0.5 + 0.5) * rect.height + rect.top;
+      myLocLabel.style.left = lx + 'px';
+      myLocLabel.style.top = (ly - 10) + 'px';
+      myLocLabel.style.display = 'block';
+    } else {
+      myLocLabel.style.display = 'none';
+    }
+  } else if (myLocLabel) {
+    myLocLabel.style.display = 'none';
   }
 
   // ── Pinned tooltip — track 3D position on screen ──
